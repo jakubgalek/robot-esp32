@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Robot Controller</title>
+	<script src="io.js" async></script>
+    <link rel="stylesheet" href="css/dashboard.min.css">
+	<link rel="stylesheet" href="css/fontello.css" type="text/css">
+	<link rel="shortcut icon" href="icon.png">
+	
+	    <!-- arkusz stylów -->
+        <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/themes/base/jquery-ui.css" />
+	
+	    <!--[if lt IE 9]>
+          <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+		
+
+		
+  </head>
+  <body onload="GetArduinoIO()" onkeydown="activate(event)" onkeyup="disactivate(event)">
+    <header>
+      <h1>Robot Controller</h1>
+	  <OX id="myX" style="display:none;">...</OX>
+	  <OY id="myY" style="display:none;">...</OY>
+    </header>
+    <nav>
+      <input type="checkbox" id="nav-menu-btn" />
+      <label for="nav-menu-btn"></label>
+      <ul>
+        <li><a href="#">Motor Settings</a></li>
+        <li><a href="#">Tension Settings</a></li>
+        <li><a href="#">Color Selections</a></li>
+        <li><a href="#">System Calibration</a></li>
+      </ul>
+    </nav>
+    <main class="container-fluid">
+      <div class="row">
+
+
+        <div class="col-xs-12 col-sm-6 col-md-3">
+          <div class="panel info">
+            <header>
+              <h2>Temperatura</h2>
+            </header>
+            <main>
+              <h3><span class="temp">...</span>&#8451;</h3>
+            </main>
+            <footer>
+              <div class="time"></div>
+            </footer>
+          </div>
+        </div>
+		
+		<div class="col-xs-12 col-sm-6 col-md-3">
+          <div class="panel info">
+            <header>
+              <h2>Ciśnienie</h2>
+            </header>
+            <main>
+              <h3><span class="pressure">...</span>hPa</h3>
+            </main>
+            <footer>
+              <div class="time"></div>
+            </footer>
+          </div>
+        </div>
+
+
+        <div class="col-xs-12 col-sm-6 col-md-3">
+          <div class="panel info">
+            <header>
+              <h2>Wilgotność</h2>
+            </header>
+            <main>
+              <h3><span class="humidity">...</span>%RH</h3>
+            </main>
+            <footer>
+			  <div class="time"></div>
+            </footer>
+          </div>
+        </div>
+		
+		
+		<div class="col-xs-12 col-sm-6 col-md-3">
+          <div class="panel info">
+            <header>
+              <h2>Sygnał WiFi</h2>
+            </header>
+            <main>
+              <h3><span class="wifi">...</span></h3>
+            </main>
+            <footer>
+              <div class="time"></div>
+            </footer>
+          </div>
+        </div>
+		
+
+      </div>
+		
+		
+      <div class="row">
+
+        <div class="col-xs-12 col-sm-12 col-md-6">
+          <div class="panel double success">
+            <header>
+              <h2>Mapa</h2>
+            </header>
+            <main>
+			
+				<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"  viewBox="0 0 1000 1000">
+					<defs>
+					<script xlink:href="io.js" />
+
+					  <pattern id="grid" patternUnits="userSpaceOnUse" x="0" y="0" width="50" height="50" viewBox="0 0 50 50">
+						  <rect x="0" y="0" width="50" height="50" fill="none" stroke-width="1" stroke="#7f8c8d" stroke-opacity="0.25" />
+						</pattern>
+					</defs>
+					<g>
+					  <rect x="0" y="0" width="1000" height="1000" fill="url(#grid)" />
+					</g>
+					<g>
+				<!--	  <line x1="500" y1="0" x2="500" y2="1000" fill="none" stroke="#7f8c8d" stroke-width="2" />
+					  <line x1="0" y1="450" x2="1000" y2="450" fill="none" stroke="#7f8c8d" stroke-width="2" />
+					  <text x="970" y="390" fill="#7f8c8d" font-family="Helvetica, Arial" font-style="italic" font-size="40">s</text>
+					</g>
+-->
+					<g>
+
+					  <circle cx="500" cy="450" r="15" fill="#c0392b" id="cir" class="circle" />
+
+					</g>
+
+					<g>
+					  <line x1="50" y1="50" x2="50" y2="850" fill="none" stroke="#2980b9" stroke-width="2" />
+					  <line x1="950" y1="50" x2="950" y2="850" fill="none" stroke="#2980b9" stroke-width="2" />
+					  
+					  <line x1="50" y1="850" x2="950" y2="850" fill="none" stroke="#2980b9" stroke-width="2" />
+					  <line x1="50" y1="50" x2="950" y2="50" fill="none" stroke="#2980b9" stroke-width="2" />
+					</g>
+				</svg>
+				
+            </main>
+            <footer>
+              <div class="time"></div>
+            </footer>
+          </div>
+        </div>
+		
+		<div class="col-xs-12 col-sm-12 col-md-3">
+          <div class="panel double success">
+            <header>
+              <h2>Sterowanie</h2>
+            </header>
+            <main>
+			 <div class="parent">
+				<div class="div1"><button class="pulsebutton" id="LED1" ontouchstart="GetButton1up()" onmousedown="GetButton1up()" onmouseup="GetButton1down()" ontouchend="GetButton1down()"><i class="icon-up-open"></i></button></div>
+				<div class="div2"><button class="pulsebutton" id="LED2" ontouchstart="GetButton2up()" onmousedown="GetButton2up()" onmouseup="GetButton2down()" ontouchend="GetButton2down()"><i class="icon-down-open"></i></button></div>
+				<div class="div3"><button class="pulsebutton" id="LED3" ontouchstart="GetButton3up()" onmousedown="GetButton3up()" onmouseup="GetButton3down()" ontouchend="GetButton3down()"><i class="icon-left-open"></i></button></div>
+				<div class="div4"><button class="pulsebutton" id="LED4" ontouchstart="GetButton4up()" onmousedown="GetButton4up()" onmouseup="GetButton4down()" ontouchend="GetButton4down()"><i class="icon-right-open"></i></button></div>
+			</div>
+			<div id="slider" style="width:300px;" ></div>
+			<p class="note">Prędkość: <span id="currentValue">180</span></p>
+            </main>
+            <footer>
+              <div class="time"></div>
+            </footer>
+          </div>
+		  
+        </div>
+		
+		<div class="col-xs-12 col-sm-12 col-md-3">
+          <div class="panel info">
+            <header>
+              <h2>Bateria</h2>
+            </header>
+            <main>
+              <h3><span class="battery">...</span>%</h3>
+            </main>
+            <footer>
+              <div class="time"></div>
+            </footer>
+          </div>
+		  
+		  <div class="panel double success" id="zadania">
+            <header>
+              <h2>Zadania</h2>
+            </header>
+            <main>
+			  <h4><a href="http://192.168.1.106:80/TEMP.txt" download="mytextdocument">Temperatury.txt</a></h4>
+			  <h4><a href="http://192.168.1.106:80/Pomiar_temperatury.xlsx">Wykres temperatur w excelu</a></h4>
+            </main>
+            <footer>
+              <div class="time"></div>
+            </footer>
+          </div>
+		  
+        </div>
+		
+        </div>
+
+      </div>
+
+      
+
+    </main>
+    <footer>
+      <p>
+        <small>
+        Built with the
+        <a href="https://github.com/hpoydar/dashboard-css">Dashboard CSS</a>
+        framework
+        </small>
+      </p>
+    </footer>
+	
+		       <!-- Włączenie jQuery oraz jQuery UI -->
+		<script src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/jquery-ui.min.js"></script>
+
+		<script src="assets/js/slider-jqueryui.js"></script>
+  </body>
+</html>
