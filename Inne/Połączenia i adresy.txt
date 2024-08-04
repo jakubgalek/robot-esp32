@@ -1,0 +1,49 @@
+GPIO 16 - L293D EN (pwm speed)
+GPIO 17 - encoder
+GPIO 25 - servo
+GPIO 33 - buzzer
+
+
+SD CARD (HSPI) MOSI<-->13, MISO<-->32, CLK<-->14, CS<-->15 
+
+TFT + TOUCH (VSPI) MOSI<-->23, MISO<-->19, CLK<-->18, CS<-->5 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+T_IRQ 27
+T_CS 26
+
+#define TFT_DC 4
+#define TFT_CS 5
+
+#define TFT_MOSI 23
+#define TFT_CLK 18
+#define TFT_RST 2
+#define TFT_MISO 19
+
+Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_MOSI, TFT_CLK, TFT_RST, TFT_MISO);
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+Addreses:
+
+Laser sensor vl53l0x:
+
+Front side:
+LF - 0x13 
+CF - 0x14
+RF - 0x15
+
+Right side:
+LR - 0x16
+RR - 0x17
+
+Servo:
+L - 0x11
+R - 0x12
+
+Expander (motors) - 0x20
+Expander (vl53l0x) - 0x24
+Voltage sensor INA3221 - 0x40
+BMP180 - 0x77
+DS3231 - 0x68
+DS3231 (EEPROM) - 0x57

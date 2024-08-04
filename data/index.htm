@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Panel robota ESP32</title>
+	<script src="js/io.js" async></script>
+    <link rel="stylesheet" href="css/style.css">
+	<link rel="stylesheet" href="css/button_arrows.css">
+	<link rel="shortcut icon" href="icon.png">
+  </head>
+  <body onload="GetArduinoIO()" onkeydown="activate(event)" onkeyup="disactivate(event)">
+    <header>
+      <h1>Panel robota ESP32</h1>
+    </header>
+    <nav>
+      <input type="checkbox" id="nav-menu-btn" />
+      <label for="nav-menu-btn"></label>
+      <ul>
+        <li><a href="#">Panel robota ESP32</a></li>
+      </ul>
+    </nav>
+    <main class="container-fluid">
+	
+	<div class="row">
+		  
+		<div class="col-xs-12 col-sm-12 col-md-3">
+          <div class="panel double success">
+            <header>
+              <h2>Sterowanie</h2>
+            </header>
+            <main>
+			 <div class="parent">
+				<div class="div1"><button class="pulsebutton" id="MOTOR1" ontouchstart="GetButton1up()" onmousedown="GetButton1up()" onmouseup="GetButton1down()" ontouchend="GetButton1down()"><i class="icon-up-open"></i></button></div>
+				<div class="div2"><button class="pulsebutton" id="MOTOR2" ontouchstart="GetButton2up()" onmousedown="GetButton2up()" onmouseup="GetButton2down()" ontouchend="GetButton2down()"><i class="icon-down-open"></i></button></div>
+				<div class="div3"><button class="pulsebutton" id="MOTOR3" ontouchstart="GetButton3up()" onmousedown="GetButton3up()" onmouseup="GetButton3down()" ontouchend="GetButton3down()"><i class="icon-left-open"></i></button></div>
+				<div class="div4"><button class="pulsebutton" id="MOTOR4" ontouchstart="GetButton4up()" onmousedown="GetButton4up()" onmouseup="GetButton4down()" ontouchend="GetButton4down()"><i class="icon-right-open"></i></button></div>
+			</div>
+				<div class="slidecontainer" id="slideContainer">
+					<p >Prędkość: <span id="value">200</span></p>
+					<input type="range" min="140" max="255" value="200" class="slider" id="myRange" >
+				</div>
+				<button id="showSliderButton">Pokaż prędkość</button>
+            </main>
+          </div>
+		  
+        </div>
+
+    <div class="col-xs-12 col-sm-12 col-md-6">
+      <div class="panel double success radar-panel">
+        <header>
+		  <div class="zoom-controls">
+		  	  <button onclick="zoomOut()">-</button>
+			  <button onclick="zoomIn()">+</button>
+		  </div>
+          <h2>Radar</h2>
+        </header>
+        <main>
+          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="-500 -500 1000 1000" id="radar-map">
+            <defs>
+              <pattern id="grid" patternUnits="userSpaceOnUse" width="50" height="50" viewBox="0 0 50 50">
+                <rect width="50" height="50" fill="none" stroke-width="1" stroke="#7f8c8d" stroke-opacity="0.25" />
+              </pattern>
+            </defs>
+            <g id="grid-group">
+              <rect x="-5000" y="-5000" width="10000" height="10000" fill="url(#grid)" />
+            </g>
+            <g id="radar-points"></g>
+            <g id="scale">
+              <line x1="0" y1="-1000" x2="0" y2="1000" stroke="#3498db" stroke-width="2" stroke-dasharray="5,5" />
+              <line x1="-1000" y1="0" x2="1000" y2="0" stroke="#3498db" stroke-width="2" stroke-dasharray="5,5" />
+              <text x="10" y="-10" font-family="Arial" font-size="20" fill="#3498db">0</text>
+            </g>
+          </svg>
+        </main>
+      </div>
+    </div>
+		
+		<div class="col-xs-12 col-sm-12 col-md-3">
+          <div class="panel info">
+            <header>
+              <h2>Napięcie Silniki</h2>
+            </header>
+            <main>
+              <h3><span class="voltageMotors">...</span>V</h3>
+            </main>
+        </div>
+		  
+		<div class="panel double success" id="zadania">
+            <header>
+              <h2>Zadania</h2>
+            </header>
+            <main>
+			  <button class="button_automatic" onclick="GetAutoDriveActive()"> Automatyczna jazda </button>
+			  <button class="button_radar" onclick="GetRadarActive()"> Uruchom radar </button>
+			  <!--<button class="button_trace"> Wyznacz trasę </button>!-->
+            </main>
+        </div>
+		  
+        </div>
+		
+        </div>
+      <div class="row">
+
+		
+		<div class="col-xs-12 col-sm-6 col-md-3">
+          <div class="panel info">
+            <header>
+              <h2>WiFi</h2>
+            </header>
+            <main>
+              <h3><span class="wifi">...</span></h3>
+            </main>
+          </div>
+        </div>
+		
+		<div class="col-xs-12 col-sm-6 col-md-3">
+          <div class="panel info">
+            <header>
+              <h2>Kierunek jazdy</h2>
+            </header>
+            <main>
+              <h3><span class="direction">...</span></h3>
+            </main>
+          </div>
+        </div>
+		
+        <div class="col-xs-12 col-sm-6 col-md-2">
+          <div class="panel info">
+            <header>
+              <h2>Temperatura</h2>
+            </header>
+            <main>
+              <h3><span class="temp">...</span>°C</h3>
+            </main>
+          </div>
+        </div>
+		
+		<div class="col-xs-12 col-sm-6 col-md-2">
+          <div class="panel info">
+            <header>
+              <h2>Wysokość</h2>
+            </header>
+            <main>
+              <h3><span class="altitude">...</span>m</h3>
+            </main>
+          </div>
+        </div>
+
+        <div class="col-xs-12 col-sm-6 col-md-2">
+          <div class="panel info">
+            <header>
+              <h2>Napięcie ESP32</h2>
+            </header>
+            <main>
+              <h3><span class="voltageESP32">...</span>V</h3>
+            </main>
+          </div>
+        </div>
+
+      </div>
+    </main>
+		<script src="js/speed_slider.js"></script>
+  </body>
+</html>
