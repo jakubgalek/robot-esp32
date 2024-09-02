@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "WiFi_config.hpp"
 #define numAngles 180
-int radarData[numAngles][2];
+volatile int radarData[numAngles][2];
 #include <Wire.h>
 #include "Voltages.hpp"
 #include "Time.hpp"
@@ -19,6 +19,9 @@ static const int SERVO_PIN = 25;
 
 const int pwmFrequency = 1000; // (1 kHz)
 const int pwmResolution = 8; // (8 bit)
+
+
+SemaphoreHandle_t xMutex;
 
 
 void setup() 
@@ -55,6 +58,7 @@ void setup()
 
   Web_init();
   
+  xMutex = xSemaphoreCreateMutex();
 
   xTaskCreatePinnedToCore(
     collect_distances_servo_Task,       // Function to execute in the task
@@ -81,7 +85,7 @@ void loop()
 
   checkForwardDriveConditions();
   checkMotorsAndReloadBuzzer();
-
+  
 // Free thread memory test
 
 /*UBaseType_t stackWaterMark = uxTaskGetStackHighWaterMark(CollectDistancesTaskHandle);

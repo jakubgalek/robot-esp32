@@ -71,21 +71,30 @@ void read_seven_sensors();
 }
 
 void read_seven_sensors() {
-  lox1.rangingTest(&measure1, false);
-  lox2.rangingTest(&measure2, false);
+ // lox1.rangingTest(&measure1, false);
+ // lox2.rangingTest(&measure2, false);
   lox3.rangingTest(&measure3, false);
   lox4.rangingTest(&measure4, false);
   lox5.rangingTest(&measure5, false);
   lox6.rangingTest(&measure6, false);
   lox7.rangingTest(&measure7, false);
 
-  measurement1 = (measure1.RangeStatus != 4) ? measure1.RangeMilliMeter / 10 : 1000;
-  measurement2 = (measure2.RangeStatus != 4) ? measure2.RangeMilliMeter / 10 : 1000;
+ // measurement1 = (measure1.RangeStatus != 4) ? measure1.RangeMilliMeter / 10 : 1000;
+//  measurement2 = (measure2.RangeStatus != 4) ? measure2.RangeMilliMeter / 10 : 1000;
   measurement3 = (measure3.RangeStatus != 4) ? measure3.RangeMilliMeter / 10 : 1000;
   measurement4 = (measure4.RangeStatus != 4) ? measure4.RangeMilliMeter / 10 : 1000;
   measurement5 = (measure5.RangeStatus != 4) ? measure5.RangeMilliMeter / 10 : 1000;
   measurement6 = (measure6.RangeStatus != 4) ? measure6.RangeMilliMeter / 10 : 1000;
   measurement7 = (measure7.RangeStatus != 4) ? measure7.RangeMilliMeter / 10 : 1000;
+
+}
+
+void read_two_sensors() {
+  lox1.rangingTest(&measure1, false);
+  lox2.rangingTest(&measure2, false);
+ 
+  measurement1 = (measure1.RangeStatus != 4) ? measure1.RangeMilliMeter / 10 : 1000;
+  measurement2 = (measure2.RangeStatus != 4) ? measure2.RangeMilliMeter / 10 : 1000;
 
 }
 

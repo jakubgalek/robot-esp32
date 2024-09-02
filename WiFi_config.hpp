@@ -1,10 +1,10 @@
 #include <WiFi.h>
 
-#define WIFI_SSID " "
-#define WIFI_PASSWORD " "
+#define WIFI_SSID ""
+#define WIFI_PASSWORD ""
 
-#define AP_SSID " "
-#define AP_PASSWORD " "
+#define AP_SSID ""
+#define AP_PASSWORD ""
 
 
 const char* ssid = WIFI_SSID;

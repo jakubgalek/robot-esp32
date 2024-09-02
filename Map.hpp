@@ -2,39 +2,63 @@
 
 Servo_ESP32 servoMotor;
 
-
 volatile bool stopFlag = true; // Global variable containing servo state
 
-void collect_distances_servo() {            
-    for (int i = 0; i <= 180; i++) {   
+extern SemaphoreHandle_t xMutex;
+
+void collect_distances_servo() {
+    // Move from 0 to 180 degrees
+    for (int i = 0; i <= 180; i++) {
         if (stopFlag) {
             servoMotor.write(0);
-            return;  // Break the function if stopFlag is true
-        }
-
-        read_seven_sensors();
-        radarData[i][0] = measurement1;
-        radarData[i][1] = measurement2;
-
-        servoMotor.write(i);
-        vTaskDelay(50); // Add delay to avoid resource exhaustion
-    }
-
-    for (int i = 180; i >= 0; i--) {
-        if (stopFlag) {
-            servoMotor.write(0); 
+            if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+                xSemaphoreGive(xMutex);
+            }
+            //Serial.println("Stopping due to stopFlag");
             return;
         }
 
-        read_seven_sensors();
-        radarData[i][0] = measurement1;
-        radarData[i][1] = measurement2;
+        if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+            read_two_sensors();
+            radarData[i][0] = measurement1;
+            radarData[i][1] = measurement2;
+            xSemaphoreGive(xMutex);
+        } else {
+            Serial.println("Failed to take semaphore");
+        }
 
         servoMotor.write(i);
-        vTaskDelay(50);
+        vTaskDelay(20 / portTICK_PERIOD_MS); // Delay for 10 milliseconds
     }
 
+    // Move from 180 to 0 degrees
+    for (int i = 180; i >= 0; i--) {
+        if (stopFlag) {
+            servoMotor.write(0);
+            if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+                xSemaphoreGive(xMutex);
+            }
+            //Serial.println("Stopping due to stopFlag");
+            return;
+        }
+
+        if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+            read_two_sensors();
+            radarData[i][0] = measurement1;
+            radarData[i][1] = measurement2;
+            xSemaphoreGive(xMutex);
+        } else {
+            Serial.println("Failed to take semaphore");
+        }
+
+        servoMotor.write(i);
+        vTaskDelay(20 / portTICK_PERIOD_MS); // Delay for 10 milliseconds
+    }
 }
+
+
+
+
 
 
 #define SAFE_DISTANCE 30
@@ -114,3 +138,89 @@ void automatic_drive() {
         turnAttempts = 0; // Reset the attempt counter when the robot can move forward
     }
 }
+
+/*
+
+#define SAFE_DISTANCE 30
+#define DESIRED_DISTANCE 20 // Odległość, którą robot chce utrzymać od ściany
+#define TURN_ANGLE 90
+#define DRIVE_DISTANCE 15
+#define BACKUP_DISTANCE 20
+#define MAX_ATTEMPTS 4
+
+void automatic_drive() {
+    int turnAttempts = 0; // Licznik prób skrętu
+    float frontLeft = measurement3;
+    float frontCenter = measurement4;
+    float frontRight = measurement5;
+    float sideRight = measurement6; // Czujnik na prawym boku
+    float sideLeft = measurement7;  // Czujnik na lewym boku
+
+    // Czy ściana jest z prawej strony?
+    if (sideRight < DESIRED_DISTANCE) {
+        // Ściana jest zbyt blisko, skręć w lewo
+        turn(turn_left, TURN_ANGLE / 2, 255);
+        direction = "Left";
+    } 
+    // Czy ściana jest z lewej strony?
+    else if (sideLeft < DESIRED_DISTANCE) {
+        // Ściana jest zbyt blisko, skręć w prawo
+        turn(turn_right, TURN_ANGLE / 2, 255);
+        direction = "Right";
+    } 
+    // Brak przeszkód z boku
+    else {
+        // Sprawdź przeszkody z przodu
+        if (frontCenter < SAFE_DISTANCE || frontLeft < SAFE_DISTANCE || frontRight < SAFE_DISTANCE) {
+            stop_driving();
+            direction = "Stop";
+            
+            // Jeśli przeszkoda jest z przodu, a czujniki boczne pokazują wolne miejsce
+            if (frontLeft < SAFE_DISTANCE && frontRight < SAFE_DISTANCE) {
+                // Jeśli frontLeft i frontRight są blokowane, ale boczne czujniki pokazują wolne miejsce
+                if (sideRight > sideLeft) {
+                    // Skręć w lewo, jeśli jest więcej miejsca z lewej strony
+                    turn(turn_left, TURN_ANGLE / 2, 255);
+                    direction = "Left";
+                } else {
+                    // Skręć w prawo, jeśli jest więcej miejsca z prawej strony
+                    turn(turn_right, TURN_ANGLE / 2, 255);
+                    direction = "Right";
+                }
+                turnAttempts++;
+            } else if (frontLeft < SAFE_DISTANCE) {
+                // Jeśli lewa strona jest blokowana, skręć w prawo
+                turn(turn_right, TURN_ANGLE / 2, 255);
+                direction = "Right";
+                turnAttempts++;
+            } else if (frontRight < SAFE_DISTANCE) {
+                // Jeśli prawa strona jest blokowana, skręć w lewo
+                turn(turn_left, TURN_ANGLE / 2, 255);
+                direction = "Left";
+                turnAttempts++;
+            } else {
+                // Jeśli żadna z powyższych opcji nie jest spełniona, zatrzymaj
+                stop_driving();
+                direction = "Stop";
+            }
+
+            // Jeśli robot próbował wielu skrętów i nadal nie może się ruszyć, cofnij
+            if (turnAttempts >= MAX_ATTEMPTS) {
+                stop_driving();
+                direction = "Stop";
+                drive(backward, BACKUP_DISTANCE, 255); // Cofnij
+                direction = "Backward";
+                turn(turn_right, 180, 255); // Obrót o 180 stopni
+                direction = "Right";
+                turnAttempts = 0; // Reset liczby prób
+            }
+        } else {
+            // Jeśli nie ma przeszkód z przodu
+            drive(forward, DRIVE_DISTANCE, 255);
+            direction = "Forward";
+            turnAttempts = 0; // Reset liczby prób, gdy robot może jechać do przodu
+        }
+    }
+}
+
+*/

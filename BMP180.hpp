@@ -28,7 +28,7 @@ int getFormattedAltitude() {
 }
 /* ------------------------------------------------- */
 int getFormattedPressure() {
-  float pressure = bmp.readPressure() / 100.0; 
+  float pressure = (bmp.readPressure() + 4) / 100.0; 
   return (int)(pressure + 0.5);
 }
 /* ------------------------------------------------- */
