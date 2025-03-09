@@ -8,7 +8,7 @@ PCF8574 pcf8574(0x20);
 #define ENCODER_PIN 17
 
 const int maxSpeed = 255;  // Maximum speed value (0 - 255)
-int pwmChannel = 2;
+int pwmChannelSpeed = 9;
 int rotates = 0;
 int indents = 0;
 bool previousIndentState;
@@ -37,7 +37,7 @@ void drive(DriveFunction directionFunction, double targetDistance, int speed) {
     return;
   }
 
-  ledcWrite(pwmChannel, speed);
+  ledcWrite(pwmChannelSpeed, speed);
   //Serial.println(speed);
   directionFunction(); // Call the passed function to set the direction
 
@@ -53,7 +53,7 @@ void drive(DriveFunction directionFunction, double targetDistance, int speed) {
       // Reduce the speed if 80% of the stop threshold distance is traveled
       if (totalDistanceTraveled >= stopThreshold) {
         int newSpeed = static_cast<int>(maxSpeed * 0.28); // Reduce speed to 28% of maxSpeed
-        ledcWrite(pwmChannel, newSpeed);
+        ledcWrite(pwmChannelSpeed, newSpeed);
          //Serial.print(newSpeed);
         
       }
@@ -61,7 +61,7 @@ void drive(DriveFunction directionFunction, double targetDistance, int speed) {
       // Reduce the speed if 80% of the target distance is traveled
       if (currentDistancePercentage >= 0.8) {
         int newSpeed = static_cast<int>(maxSpeed * 0.8); // Reduce speed to 80% of maxSpeed
-        ledcWrite(pwmChannel, newSpeed);
+        ledcWrite(pwmChannelSpeed, newSpeed);
         //Serial.print(newSpeed);
       }
     }
@@ -73,10 +73,10 @@ void drive(DriveFunction directionFunction, double targetDistance, int speed) {
     if (currentIndentState != previousIndentState) {
       if (currentIndentState == HIGH) {
         indents++;
-        Serial.print(rotates);
-        Serial.print(" rotates ");
-        Serial.print(indents);
-        Serial.println(" indents");
+        //Serial.print(rotates);
+        //Serial.print(" rotates ");
+        //Serial.print(indents);
+        //Serial.println(" indents");
       }
       previousIndentState = currentIndentState;
     }

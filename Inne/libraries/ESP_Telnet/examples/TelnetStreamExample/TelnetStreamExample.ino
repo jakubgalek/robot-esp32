@@ -5,28 +5,125 @@
 /* ------------------------------------------------- */
 
 #define SERIAL_SPEED  9600
-#define INFRA_SSID    "MY SSID"
-#define INFRA_PSWD    "MY PASS"
+#define WIFI_SSID     "MY SSID"
+#define WIFI_PASSWORD "MY PASS"
 
 /* ------------------------------------------------- */
 
 ESPTelnetStream telnet;
+IPAddress ip;
+uint16_t  port = 23;
 
 /* ------------------------------------------------- */
 
-void telnetConnected(String ip) {
-  Serial.print(ip);
-  Serial.println(" connected.");
+bool isConnected() {
+  return (WiFi.status() == WL_CONNECTED);
 }
 
-void telnetDisconnected(String ip) {
-  Serial.print(ip);
-  Serial.println(" disconnected.");
+/* ------------------------------------------------- */
+
+void errorMsg(String error, bool restart = true) {
+  Serial.println(error);
+  if (restart) {
+    Serial.println("Rebooting now...");
+    delay(2000);
+    ESP.restart();
+    delay(2000);
+  }
 }
 
-void telnetReconnect(String ip) {
+/* ------------------------------------------------- */
+
+// (optional) callback functions for telnet events
+void onTelnetConnect(String ip) {
+  Serial.print("- Telnet: ");
   Serial.print(ip);
-  Serial.println(" reconnected.");
+  Serial.println(" connected");
+  
+  telnet.println("\nWelcome " + telnet.getIP());
+  telnet.println("(Use ^] + q  to disconnect.)");
+}
+
+/* ------------------------------------------------- */
+
+void onTelnetDisconnect(String ip) {
+  Serial.print("- Telnet: ");
+  Serial.print(ip);
+  Serial.println(" disconnected");
+}
+
+/* ------------------------------------------------- */
+
+void onTelnetReconnect(String ip) {
+  Serial.print("- Telnet: ");
+  Serial.print(ip);
+  Serial.println(" reconnected");
+}
+
+/* ------------------------------------------------- */
+
+void onTelnetConnectionAttempt(String ip) {
+  Serial.print("- Telnet: ");
+  Serial.print(ip);
+  Serial.println(" tried to connected");
+}
+
+/* ------------------------------------------------- */
+
+void onTelnetInput(String str) {
+  // checks for a certain command
+  if (str == "ping") {
+    telnet.println("> pong"); 
+    Serial.println("- Telnet: pong");
+  // disconnect the client
+  } else if (str == "bye") {
+    telnet.println("> disconnecting you...");
+    telnet.disconnectClient();
+  } else {
+    telnet.println(str);
+  }
+}
+
+/* ------------------------------------------------- */
+
+void setupTelnet() {  
+  // passing on functions for various telnet events
+  telnet.onConnect(onTelnetConnect);
+  telnet.onConnectionAttempt(onTelnetConnectionAttempt);
+  telnet.onReconnect(onTelnetReconnect);
+  telnet.onDisconnect(onTelnetDisconnect);
+  telnet.onInputReceived(onTelnetInput);
+
+  Serial.print("- Telnet: ");
+  if (telnet.begin(port)) {
+    Serial.println("running");
+  } else {
+    Serial.println("error.");
+    errorMsg("Will reboot...");
+  }
+}
+
+/* ------------------------------------------------- */
+
+bool connectToWiFi(const char* ssid, const char* password, int max_tries = 20, int pause = 500) {
+  int i = 0;
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+  delay(100);
+  
+  #if defined(ARDUINO_ARCH_ESP8266)
+    WiFi.forceSleepWake();
+    delay(200);
+  #endif
+  WiFi.begin(ssid, password);
+  do {
+    delay(pause);
+    Serial.print(".");
+    i++;
+  } while (!isConnected() && i < max_tries);
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
+  return isConnected();
 }
 
 /* ------------------------------------------------- */
@@ -35,27 +132,17 @@ void setup() {
   Serial.begin(SERIAL_SPEED);
   Serial.println("ESP Telnet Test");
 
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(INFRA_SSID, INFRA_PSWD);
-  while(WiFi.status() != WL_CONNECTED) {
-    delay(100);
-  }
-
-  telnet.onConnect(telnetConnected);
-  telnet.onDisconnect(telnetDisconnected);
-  telnet.onReconnect(telnetReconnect);
-
-  Serial.print("Telnet.begin: ");
-  if(telnet.begin()) {
-    Serial.println("Successful");
+  connectToWiFi(WIFI_SSID, WIFI_PASSWORD);
+  
+  if (isConnected()) {
+    ip = WiFi.localIP();
+    Serial.println();
+    Serial.print("- Telnet: "); Serial.print(ip); Serial.print(":"); Serial.println(port);
+    setupTelnet();
   } else {
-    Serial.println("Failed");
+    Serial.println();    
+    errorMsg("Error connecting to WiFi");
   }
-
-  IPAddress ip = WiFi.localIP();
-  Serial.println();
-  Serial.print("Telnet Server IP: "); Serial.print(ip);
-
 }
 
 /* ------------------------------------------------- */

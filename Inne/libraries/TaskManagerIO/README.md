@@ -1,10 +1,20 @@
 ## TaskManagerIO scheduling and event based library for Arudino and mbed
+[![Build](https://github.com/TcMenu/TaskManagerIO/actions/workflows/build.yml/badge.svg)](https://github.com/TcMenu/TaskManagerIO/actions/workflows/build.yml)
+[![Test](https://github.com/TcMenu/TaskManagerIO/actions/workflows/test.yml/badge.svg)](https://github.com/TcMenu/TaskManagerIO/actions/workflows/test.yml)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache--2.0-green.svg)](https://github.com/TcMenu/TaskManagerIO/blob/main/LICENSE)
+[![GitHub release](https://img.shields.io/github/release/TcMenu/TaskManagerIO.svg?maxAge=3600)](https://github.com/TcMenu/TaskManagerIO/releases)
+[![davetcc](https://img.shields.io/badge/davetcc-dev-blue.svg)](https://github.com/davetcc)
+[![JSC TechMinds](https://img.shields.io/badge/JSC-TechMinds-green.svg)](https://www.jsctm.cz)
 
-Dave Cherry / TheCodersCorner.com made this library available for you to use. It takes me significant effort to keep all my libraries current and working on a wide range of boards. Please consider making at least a one off donation via the sponsor button if you find it useful. In forks, please keep text to here intact.
+TcMenu organisation made this library available for you to use. It takes significant effort to keep all our libraries current and working on a wide range of boards. Please consider making at least a one off donation via the sponsor button if you find it useful. In forks, please keep text to here intact.
 
-TaskManagerIO is an evolution of the task management class that was originally situated in IoAbstraction. It is backed by a simple queue that supports, immediate queuing, scheduled tasks, and events. It is safe to add tasks from another thread, and safe to trigger events from interrupts. However, your tasks are shielded from threads and interrupts making your code simpler.
+<a href="https://www.buymeacoffee.com/davetcc" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
+TaskManagerIO is an evolution of the task management class that was originally situated in IoAbstraction. It is backed by a simple queue that supports: immediate queuing, scheduled tasks, and events. It is safe to add tasks from another thread, and safe to trigger events from interrupts. However, your tasks are shielded from threads and interrupts making your code simpler.
 
 We are in a new era of embedded development, where RTOS, multiple threads (and even cores) have become a relatity. Any viable task manager needs to be capable in these environments, while still protecting tasks from multithreaded concerns. We are pleased to say, this version meets both goals. Importantly, any sketch that worked on IoAbstraction task manager will work with this library unaffected. 
+
+Along with this library working on most Arduino based devices, it is also tested by us on an mbed board (STM32F4) and PicoSDK.
 
 Below, we list the main features of TaskManagerIO:
 
@@ -15,6 +25,8 @@ Below, we list the main features of TaskManagerIO:
 * Marshalled interrupt support, where task manager handles the raw interrupt ISR, and then calls your interrupt task.
 
 ## Getting started with taskManager
+
+Youtube guide that goes through most important concepts: https://youtu.be/N1ILzBfu5Zc
 
 Here we just demonstrate the most basic usage. Take a look at the examples for more complex cases, or the reference documentation that's built from the source.
 
@@ -114,12 +126,14 @@ Arduino Only - If you want to use the legacy interrupt marshalling support inste
 
 ## Further documentation and getting help
 
-* [TaskManagerIO documentation pages](https://www.thecoderscorner.com/products/arduino-libraries/taskmanager-io/)
-* [TaskManagerIO reference documentation](https://www.thecoderscorner.com/ref-docs/taskmanagerio/html)
+* [TaskManagerIO documentation pages](https://tcmenu.github.io/documentation/arduino-libraries/taskmanager-io/)
+* [TaskManagerIO reference documentation](https://tcmenu.github.io/documentation/ref-docs/taskmanagerio/html)
 
-You can ask questions either in the discussions section of this repo, or using the Arduino forum. We generally answer most questions, but the rules of engagement are: **this is my hobby, I make it available because it helps others**. Don't expect immediate answers, make sure you've recreated the problem in a simple sketch that you can send to me. Please consider making at least a one time donation using the sponsor link if we do help you out.
+Community questions can be asked in the discussions section of this repo, or using the Arduino forum. We generally answer most community questions but the responses will not be timely. Before posting into the community make sure you've recreated the problem in a simple sketch, and please consider making at least a one time donation (see links further up):
 
-* [discussions section of the Task Manager repo](https://github.com/davetcc/TaskManagerIO/discussions)
+<a href="https://www.buymeacoffee.com/davetcc" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-blue.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a>
+
+* [discussions section of the Task Manager repo](https://github.com/TcMenu/TaskManagerIO/discussions)
 * [Arduino discussion forum](https://forum.arduino.cc/) where questions can be asked, please tag me using `@davetcc`.
 * [Legacy discussion forum probably to be made read only soon](https://www.thecoderscorner.com/jforum/).
 
@@ -137,7 +151,7 @@ Many thanks to contributors for helping us to confirm that this software runs on
 
 ## What is TaskManagerIO?
 
-TaskManagerIO library is not a full RTOS, rather it can be used on top of FreeRTOS via ESP32 or mbed RTOS. It is a complimentary technology that can assist with certain types of work-load. It has a major advantage, that the same code runs on many platforms as listed above. It is a core building block of [IoAbstraction](https://github.com/davetcc/IoAbstraction) and [tcMenu framework](https://github.com/davetcc/IoAbstraction)
+TaskManagerIO library is not a full RTOS, rather it can be used on top of FreeRTOS via ESP32 or mbed RTOS. It is a complimentary technology that can assist with certain types of work-load. It has a major advantage, that the same code runs on many platforms as listed above. It is a core building block of [IoAbstraction](https://github.com/TcMenu/IoAbstraction) and [tcMenu framework](https://github.com/TcMenu/IoAbstraction)
 
 ## Important notes around scheduling tasks and events
 

@@ -3,14 +3,15 @@
  * between Arduino and mbed, so you can also look at the Arduino examples for inspiration too.
  *
  * This example shows advanced usage of taskManager covering scheduled execution, events, putting
- * events on the queue from anote
+ * events on the queue from another thread
+ *
+ * There is a getting started guide including video available:
+ * https://www.thecoderscorner.com/products/arduino-libraries/taskmanager-io/
  */
 
 #include <mbed.h>
 #include <TaskManagerIO.h>
 #include <TmLongSchedule.h>
-
-#define LOG_TASK_MANGER_DEBUG 0
 
 // Here we create a serial object to write log statements to.
 BufferedSerial console(USBTX, USBRX, 115200);
@@ -203,15 +204,6 @@ void anotherProc() {
 
 int main() {
     log("starting up taskmanager example");
-
-#if LOG_TASK_MANGER_DEBUG != 0
-    // this is how we get diagnostic information from task manager
-    // it will notify of significant events to the loggingDelegate.
-    tm_internal::setLoggingDelegate([](tm_internal::TmErrorCode code, int task) {
-        log("Taskmgr notification code: ", code);
-        log("   -> Task num: ", task);
-    });
-#endif //LOG_TASK_MANGER_DEBUG
 
     setupTasks();
 

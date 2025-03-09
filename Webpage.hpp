@@ -27,42 +27,43 @@ void automatic_drive_Task(void *pvParameters) {
 }
 
 void collect_distances_servo_Task(void *pvParameters) {
-
     while (1) {
-
-      collect_distances_servo();
-      vTaskDelay(100 / portTICK_PERIOD_MS);
+        //Serial.println("Radar task running...");
+        collect_distances_servo();
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
+
+
 
 void SetMOTORs() {
     // MOTOR 1
     if (server.hasArg("MOTOR1")) {
         MOTOR_state[0] = server.arg("MOTOR1").toInt();
-      if (MOTOR_state[0]==1 && !(measurement3 <= 10) && !(measurement4 <= 10) && !(measurement5 <= 10)){ledcWrite(pwmChannel, 200);forward();} else if(MOTOR_state[0]==0) stop_driving();
+      if (MOTOR_state[0]==1 && !(measurement3 <= 10) && !(measurement4 <= 10) && !(measurement5 <= 10)){ledcWrite(pwmChannelSpeed, 200);forward();} else if(MOTOR_state[0]==0) stop_driving();
     }
 
     // MOTOR 2
     if (server.hasArg("MOTOR2")) {
         MOTOR_state[1] = server.arg("MOTOR2").toInt();
-     if(MOTOR_state[1]==1){ledcWrite(pwmChannel, 200);backward();} else if(MOTOR_state[1]==0) stop_driving();
+     if(MOTOR_state[1]==1){ledcWrite(pwmChannelSpeed, 200);backward();} else if(MOTOR_state[1]==0) stop_driving();
     }
 
     // MOTOR 3
     if (server.hasArg("MOTOR3")) {
         MOTOR_state[2] = server.arg("MOTOR3").toInt();
-        if(MOTOR_state[2]==1){ledcWrite(pwmChannel, 220);turn(turn_left,90,255); direction = "W lewo";} else if(MOTOR_state[2]==0) stop_driving();
+        if(MOTOR_state[2]==1){ledcWrite(pwmChannelSpeed, 220);turn(turn_left,90,255); direction = "W lewo";} else if(MOTOR_state[2]==0) stop_driving();
     }
 
     // MOTOR 4
     if (server.hasArg("MOTOR4")) {
         MOTOR_state[3] = server.arg("MOTOR4").toInt();
-       if(MOTOR_state[3]==1){ledcWrite(pwmChannel, 220);turn(turn_right,90,255); direction = "W prawo";} else if(MOTOR_state[3]==0) stop_driving();
+       if(MOTOR_state[3]==1){ledcWrite(pwmChannelSpeed, 220);turn(turn_right,90,255); direction = "W prawo";} else if(MOTOR_state[3]==0) stop_driving();
     }
     // Speed Slider on website
     if (server.hasArg("Slider")) {
         int motorSpeed = server.arg("Slider").toInt(); // Get speed value from the slider
-        ledcWrite(pwmChannel, motorSpeed); // Set the motor speed
+        ledcWrite(pwmChannelSpeed, motorSpeed); // Set the motor speed
         //Serial.println(motorSpeed);
     }
     // Automatic drive button on website
@@ -87,25 +88,27 @@ void SetMOTORs() {
         {
           if (AutomaticDriveTaskHandle != NULL) {
                 vTaskDelete(AutomaticDriveTaskHandle);
-                AutomaticDriveTaskHandle = NULL;
-                stop_driving();
+        AutomaticDriveTaskHandle = NULL;
+        stop_driving();
+          servoMotor.attach(25);
+  servoMotor.write(0);
+        //Serial.print("stopFlag: ");
+        //Serial.println(stopFlag);  // Sprawdzenie wartości stopFlag
              }
         } 
     }
      // RADAR button on website
      if (server.hasArg("RADAR")) {
-        RADAR_state = server.arg("RADAR").toInt();
+    RADAR_state = server.arg("RADAR").toInt();
 
-        if (RADAR_state == 1) 
-        {
-          stopFlag=false;
-        }
-
-        else if (RADAR_state == 0) 
-        {
-           stopFlag=true;
-        }
-      }
+    if (RADAR_state == 1) {
+        stopFlag = false;
+        //Serial.println("Radar ON, stopFlag = false");
+    } else if (RADAR_state == 0) {
+        stopFlag = true;
+        //Serial.println("Radar OFF, stopFlag = true");
+    }
+}
     
 }
 

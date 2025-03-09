@@ -42,7 +42,7 @@ void setup() {
     unsigned status;
     
     // default settings
-    status = bme.begin(0x76);  
+    status = bme.begin();  
     // You can also pass in a Wire library object like &Wire2
     // status = bme.begin(0x76, &Wire2)
     if (!status) {

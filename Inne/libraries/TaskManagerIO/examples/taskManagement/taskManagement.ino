@@ -11,6 +11,9 @@ To test the interrupt support, wire a switch to pin 2 with pull up/down. Each ch
 will cause an interrupt.
 
 Written by Dave Cherry of TheCodersCorner.com in 2017
+
+There is a getting started guide including video available:
+https://www.thecoderscorner.com/products/arduino-libraries/taskmanager-io/
 */
 
 #include <Arduino.h>
@@ -100,14 +103,6 @@ void setup() {
     Serial.print(DEFAULT_TASK_SIZE);
     Serial.print(", blocks = ");
     Serial.println(DEFAULT_TASK_BLOCKS);
-
-    // if you want to receive notifications from task manager, provide a loggingDelegate as below.
-    tm_internal::setLoggingDelegate([] (tm_internal::TmErrorCode code, int id) {
-        Serial.print("TM Notification code=");
-        Serial.print(code);
-        Serial.print(", id=");
-        Serial.println(id);
-    });
 
     // connect a switch to interruptPin, so you can raise interrupts.
     pinMode(interruptPin, INPUT);

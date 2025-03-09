@@ -21,6 +21,12 @@ const int pwmFrequency = 1000; // (1 kHz)
 const int pwmResolution = 8; // (8 bit)
 
 
+
+
+int pwmChannelServo = 0;  // Przykładowa nazwa kanału PWM
+int pwmFreq = 50;    // Częstotliwość PWM (standardowa dla serw)
+
+
 SemaphoreHandle_t xMutex;
 
 
@@ -50,8 +56,11 @@ void setup()
 
   refreshTFT();
 
-  ledcSetup(pwmChannel, pwmFrequency, pwmResolution);
-  ledcAttachPin(SPEED_PIN, pwmChannel);
+  ledcSetup(pwmChannelSpeed, pwmFrequency, pwmResolution);
+  ledcAttachPin(SPEED_PIN, pwmChannelSpeed);
+
+ ledcSetup(pwmChannelServo, pwmFreq, pwmResolution); 
+ ledcAttachPin(SERVO_PIN, pwmChannelServo);
 
   servoMotor.attach(SERVO_PIN);
   servoMotor.write(0);
@@ -96,5 +105,3 @@ Serial.printf("Stack AutomaticDriveTaskHandle: %u bytes\n", stackWaterMark2);
 */
 
 }
-
-

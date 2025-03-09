@@ -1,6 +1,6 @@
-#include <Servo_ESP32.h>
+#include <ESP32Servo.h>
 
-Servo_ESP32 servoMotor;
+Servo servoMotor;
 
 volatile bool stopFlag = true; // Global variable containing servo state
 
@@ -57,80 +57,75 @@ void collect_distances_servo() {
 }
 
 
-#define SAFE_DISTANCE 30
+#define SAFE_DISTANCE 35
 #define TURN_ANGLE 90
-#define DRIVE_DISTANCE 15  // Distance to travel before the next decision in cm
-#define BACKUP_DISTANCE 20 // Distance the robot reverses when encountering a difficult space
-#define MAX_ATTEMPTS 4     // Maximum number of turn attempts before backing up
+#define DRIVE_DISTANCE 15  
+#define BACKUP_DISTANCE 20  
+#define MAX_ATTEMPTS 4     
 
 void automatic_drive() {
-
-    int turnAttempts = 0; // Turn attempt counter
-
-    read_five_sensors();
+    static int turnAttempts = 0;  // Licznik prób skrętu
+    read_five_sensors(); 
     
     float frontLeft = measurement3;
     float frontCenter = measurement4;
     float frontRight = measurement5;
 
-    // Check for obstacles in front
-    if (frontCenter < SAFE_DISTANCE || frontLeft < SAFE_DISTANCE || frontRight < SAFE_DISTANCE) {
-        // Obstacle in front
+    bool obstacleFront = frontCenter < SAFE_DISTANCE;
+    bool obstacleLeft = frontLeft < SAFE_DISTANCE;
+    bool obstacleRight = frontRight < SAFE_DISTANCE;
+
+    if (obstacleFront || obstacleLeft || obstacleRight) {
         stop_driving();
         direction = "Stop";
-        
-        // Decide on a turn
-        if (frontLeft > SAFE_DISTANCE && frontRight > SAFE_DISTANCE) {
-            // If both left and right sides in front are clear, turn left
-            turn(turn_left, TURN_ANGLE, 255);
-            direction = "W lewo";
-            turnAttempts++;
-        } else if (frontCenter < SAFE_DISTANCE && frontLeft < SAFE_DISTANCE && frontRight < SAFE_DISTANCE) {
-            // If the front is blocked, turn towards the side with more space
-            if (frontLeft < frontRight) {
-                // Turn right if the left side is more blocked
-                turn(turn_right, TURN_ANGLE / 2, 255);
-                direction = "W prawo";
-            } else {
-                // Turn left if the right side is more blocked
-                turn(turn_left, TURN_ANGLE / 2, 255);
+
+        if (!obstacleLeft && obstacleFront && !obstacleRight) {
+            // Jeśli przód jest zablokowany, ale boki wolne, skręć losowo
+            if (random(0, 2) == 0) {
+                turn(turn_left, TURN_ANGLE, 255);
                 direction = "W lewo";
+            } else {
+                turn(turn_right, TURN_ANGLE, 255);
+                direction = "W prawo";
             }
-            turnAttempts++;
-        } else if (frontLeft < SAFE_DISTANCE) {
-            // If the left side is blocked, turn right
-            turn(turn_right, TURN_ANGLE / 2, 255);
-            direction = "W prawo";
-            turnAttempts++;
-        } else if (frontRight < SAFE_DISTANCE) {
-            // If the right side is blocked, turn left
+        } 
+        else if (!obstacleLeft) {
+            // Skręć w lewo, jeśli lewa strona jest wolna
             turn(turn_left, TURN_ANGLE / 2, 255);
             direction = "W lewo";
-            turnAttempts++;
-        } else {
-            // If none of the above conditions are met, stop
-            stop_driving();
-            direction = "Stop";
-            // delay(1000);  // Wait a moment to assess the situation
-        }
-
-        // If the robot has tried turning multiple times and still cannot proceed, reverse
-        if (turnAttempts >= MAX_ATTEMPTS) {
-            stop_driving();
-            direction = "Stop";
-            // delay(1000);  // Wait a moment
-            drive(backward, BACKUP_DISTANCE, 255); // Reverse
-            direction = "Do tyłu";
-            // delay(1000);  // Wait a moment to allow the robot to reverse
-            turn(turn_right, 180, 255); // Turn 180 degrees
+        } 
+        else if (!obstacleRight) {
+            // Skręć w prawo, jeśli prawa strona jest wolna
+            turn(turn_right, TURN_ANGLE / 2, 255);
             direction = "W prawo";
-            // delay(1000);  // Wait a moment to allow the robot to turn
-            turnAttempts = 0; // Reset the attempt counter
+        } 
+        else {
+            // Jeśli przód i oba boki są zablokowane
+            turnAttempts++;
+
+            if (turnAttempts >= MAX_ATTEMPTS) {
+                stop_driving();
+                direction = "Stop";
+                drive(backward, BACKUP_DISTANCE, 255);  
+                direction = "Do tyłu";
+                turn(turn_right, 180, 255);  
+                direction = "W prawo";
+                turnAttempts = 0;
+            } else {
+                // Jeśli jeszcze nie było maksymalnych prób, skręć w miejsce z większą przestrzenią
+                if (frontLeft > frontRight) {
+                    turn(turn_left, TURN_ANGLE / 2, 255);
+                    direction = "W lewo";
+                } else {
+                    turn(turn_right, TURN_ANGLE / 2, 255);
+                    direction = "W prawo";
+                }
+            }
         }
     } else {
-        // No obstacles in front
-        drive(forward, DRIVE_DISTANCE, 255);
+        // Brak przeszkód - jedź do przodu
+        forward();
         direction = "Do przodu";
-        turnAttempts = 0; // Reset the attempt counter when the robot can move forward
+        turnAttempts = 0;  
     }
 }

@@ -24,7 +24,10 @@ class TimerTask;
 #endif // has include "io_local_definitions"
 
 // when not on mbed, we need to load Arduino.h to get the right defines for some boards.
-#ifndef __MBED__
+#if defined(BUILD_FOR_PICO_CMAKE)
+#include <pico/stdlib.h>
+#include <valarray>
+#elif !defined(__MBED__)
 #include <Arduino.h>
 #endif
 
@@ -116,7 +119,6 @@ namespace tm_internal {
     }
 }
 #elif defined(ESP8266) || defined(ESP32) || defined(ARDUINO_PICO_REVISION)
-#include "Arduino.h"
 typedef uint8_t pintype_t;
 # define IOA_USE_ARDUINO
 #if defined(TM_ENABLE_CAPTURED_LAMBDAS)
@@ -244,7 +246,51 @@ namespace tm_internal {
     }
 }
 #endif
+#elif defined(BUILD_FOR_PICO_CMAKE)
+#include <pico/critical_section.h>
+#if defined(TM_ENABLE_CAPTURED_LAMBDAS)
+#define TM_ALLOW_CAPTURED_LAMBDA
+#endif
+typedef uint8_t pintype_t;
+namespace tm_internal {
+    typedef TimerTask *volatile TimerTaskAtomicPtr;
+    typedef volatile bool TmAtomicBool;
+    extern critical_section_t* tmLock;
+    void initPicoTmLock();
 
+    static bool atomicSwapBool(volatile bool *ptr, bool expected, bool newValue) {
+        bool ret = false;
+        critical_section_enter_blocking(tmLock);
+        if(*ptr == expected) {
+            *ptr = newValue;
+            ret = true;
+        }
+        critical_section_exit(tmLock);
+        return ret;
+    }
+
+    static void atomicWriteBool(volatile bool *ptr, bool val) {
+        critical_section_enter_blocking(tmLock);
+        *ptr = val;
+        critical_section_exit(tmLock);
+    }
+
+    inline bool atomicReadBool(volatile bool *ptr) {
+        bool ret = false;
+        critical_section_enter_blocking(tmLock);
+        ret = *ptr;
+        critical_section_exit(tmLock);
+        return ret;
+    }
+
+    inline void atomicWritePtr(TimerTaskAtomicPtr *ptr, TimerTask *newVal) {
+        *ptr = newVal;
+    }
+
+    inline TimerTask *atomicReadPtr(TimerTaskAtomicPtr *ptr) {
+        return *ptr;
+    }
+}
 #else
 // fall back to using Arduino regular logic, works for all single core boards. If we end up here for a multicore
 // board then there may be problems. Here we are in full arduino mode (AVR, MKR etc).
@@ -343,33 +389,6 @@ typedef uint32_t sched_t;
 #endif // DEFAULT_TASK_BLOCKS not defined when task size is
 #endif // DEFAULT_TASK_SIZE defined already
 
-namespace tm_internal {
-    enum TmErrorCode {
-        /** reallocating memory by adding another block, number of blocks in the second parameter */
-        TM_INFO_REALLOC = 1,
-        /** A task slot has been allocated, taskid in second parameter */
-        TM_INFO_TASK_ALLOC = 2,
-        /** A task slot has been freed, taskid in second parameter */
-        TM_INFO_TASK_FREE = 3,
-
-        // warnings and errors are over 100, info level 0..99
-
-        /** probable bug, the lock status was not as expected, please report along with sketch to reproduce  */
-        TM_ERROR_LOCK_FAILURE = 100,
-        /** high concurrency is resulting in very high spin counts, performance may be affected */
-        TM_WARN_HIGH_SPINCOUNT,
-        /** task manager is full, consider settings the default task settings higher. */
-        TM_ERROR_FULL
-    };
-    typedef void (*LoggingDelegate)(TmErrorCode code, int task);
-    extern LoggingDelegate loggingDelegate;
-    void setLoggingDelegate(LoggingDelegate delegate);
-
-    inline void tmNotification(TmErrorCode code, int task) {
-        if(loggingDelegate) loggingDelegate(code, task);
-    }
-}
-
 //
 // Here we define an attribute needed for interrupt support on ESP8266 and ESP32 boards, any interrupt code that is
 // going to run on these boards should be marked with this attribute.
@@ -390,5 +409,13 @@ namespace tm_internal {
 # define TM_ALLOW_CAPTURED_LAMBDA
 #endif // _has_include
 #endif // GCC>=5 and !TM_ALLOW_CAPTURED_LAMBDA
+
+#ifndef internal_min
+#define internal_min(a, b)  ((a) > (b) ? (b) : (a))
+#endif // internal_min
+
+#ifndef internal_max
+#define internal_max(a, b)  ((a) < (b) ? (b) : (a));
+#endif // internal_max
 
 #endif //TASKMANGERIO_PLATFORMDETERMINATION_H
