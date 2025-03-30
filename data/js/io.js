@@ -128,6 +128,7 @@ rangeInput.addEventListener('input', function() {
 			strMOTOR3 = "";
 			strMOTOR4 = "";
 			strAUTO_DRIVE = "";
+		
 		}
 		 
 // Definiowanie kodów klawiszy
@@ -304,92 +305,115 @@ let startX, startY; // Zmienne do przechowywania początkowych współrzędnych 
   svg.addEventListener('mouseup', endPan);
 
 
+// Funkcja przetwarzająca dane radarowe oraz pozycję robota
 function updateRadarData(xml) {
-  const radarPoints = xml.getElementsByTagName('radarPoint');
-  for (let i = 0; i < radarPoints.length; i++) {
-    const angle = parseInt(radarPoints[i].getElementsByTagName('angle')[0].textContent);
-    const distance1 = parseInt(radarPoints[i].getElementsByTagName('distance1')[0].textContent);
-    const distance2 = parseInt(radarPoints[i].getElementsByTagName('distance2')[0].textContent);
-    radarData1[angle] = distance1;
-    radarData2[angle] = distance2;
-  }
-  drawRadar();
+    // Aktualizacja danych radarowych (Twoja dotychczasowa implementacja)
+    const radarPoints = xml.getElementsByTagName('radarPoint');
+    for (let i = 0; i < radarPoints.length; i++) {
+        const angle = parseInt(radarPoints[i].getElementsByTagName('angle')[0].textContent);
+        const distance1 = parseInt(radarPoints[i].getElementsByTagName('distance1')[0].textContent);
+        const distance2 = parseInt(radarPoints[i].getElementsByTagName('distance2')[0].textContent);
+        radarData1[angle] = distance1;
+        radarData2[angle] = distance2;
+    }
+    drawRadar();
+    
+    // Aktualizacja pozycji robota – odczytujemy wartości z XML
+    const robotXElement = xml.getElementsByTagName('robotX')[0];
+    const robotYElement = xml.getElementsByTagName('robotY')[0];
+    const robotAngleElement = xml.getElementsByTagName('robotAngle')[0];
+    if (robotXElement && robotYElement && robotAngleElement) {
+        const robotX = parseFloat(robotXElement.textContent);
+        const robotY = parseFloat(robotYElement.textContent);
+        const robotAngle = parseFloat(robotAngleElement.textContent);
+        // Debug: wypisz dane do konsoli
+        //console.log(`Robot position: x=${robotX}, y=${robotY}, angle=${robotAngle}`);
+        updateRobotSVG(robotX, robotY, robotAngle);
+    }
 }
 
+// Funkcja aktualizująca pozycję robota w SVG
+function updateRobotSVG(x, y, angle) {
+    const robot = document.getElementById('robot');
+    if (robot) {
+        // Przykład: jeżeli chcesz skalować lub przesuwać pozycję, zmodyfikuj x, y tutaj
+        robot.setAttribute('transform', `translate(${x}, ${y}) rotate(${angle})`);
+    }
+}
+
+// Funkcja rysująca radar (Twoja dotychczasowa implementacja)
 function drawRadar() {
-  const svg = document.getElementById('radar-points');
-  svg.innerHTML = '';
-
-  for (let i = 0; i < radarData1.length; i++) {
-    const distance1 = radarData1[i] * zoomLevel;
-    const distance2 = radarData2[i] * zoomLevel;
-    const angleRad = (i - 90) * (Math.PI / 180);
-
-    const x1 = distance1 * Math.cos(angleRad);
-    const y1 = -distance1 * Math.sin(angleRad);
-    const x2 = -distance2 * Math.cos(angleRad);
-    const y2 = distance2 * Math.sin(angleRad);
-	
-	// Obrót o 90 stopni w lewo dla punktu (x1, y1)
-	const x1_prime = -y1;
-	const y1_prime = x1;
-
-	// Obrót o 90 stopni w lewo dla punktu (x2, y2)
-	const x2_prime = -y2;
-	const y2_prime = x2;
-
-    const point1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    point1.setAttribute('cx', -x1_prime);
-    point1.setAttribute('cy', -y1_prime);
-    point1.setAttribute('r', 3);
-    point1.setAttribute('fill', 'orange');
-    svg.appendChild(point1);
-
-    const point2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-    point2.setAttribute('cx', -x2_prime);
-    point2.setAttribute('cy', -y2_prime);
-    point2.setAttribute('r', 3);
-    point2.setAttribute('fill', 'orange');
-    svg.appendChild(point2);
-  }
+    const svg = document.getElementById('radar-points');
+    svg.innerHTML = '';
+    for (let i = 0; i < radarData1.length; i++) {
+        const distance1 = radarData1[i] * zoomLevel;
+        const distance2 = radarData2[i] * zoomLevel;
+        const angleRad = (i - 90) * (Math.PI / 180);
+        const x1 = distance1 * Math.cos(angleRad);
+        const y1 = -distance1 * Math.sin(angleRad);
+        const x2 = -distance2 * Math.cos(angleRad);
+        const y2 = distance2 * Math.sin(angleRad);
+        
+        // Obrót o 90 stopni w lewo dla punktu (x1, y1)
+        const x1_prime = -y1;
+        const y1_prime = x1;
+        // Obrót o 90 stopni w lewo dla punktu (x2, y2)
+        const x2_prime = -y2;
+        const y2_prime = x2;
+        
+        const point1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        point1.setAttribute('cx', -x1_prime);
+        point1.setAttribute('cy', -y1_prime);
+        point1.setAttribute('r', 3);
+        point1.setAttribute('fill', 'orange');
+        svg.appendChild(point1);
+        
+        const point2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        point2.setAttribute('cx', -x2_prime);
+        point2.setAttribute('cy', -y2_prime);
+        point2.setAttribute('r', 3);
+        point2.setAttribute('fill', 'orange');
+        svg.appendChild(point2);
+    }
 }
 
+// Funkcje zoomowania i panowania mapą (bez zmian)
 function zoomIn() {
-  zoomLevel *= 1.2;
-  updateViewBox();
+    zoomLevel *= 1.2;
+    updateViewBox();
 }
 
 function zoomOut() {
-  zoomLevel /= 1.2;
-  updateViewBox();
+    zoomLevel /= 1.2;
+    updateViewBox();
 }
 
 function updateViewBox() {
-  const svg = document.getElementById('radar-map');
-  const viewBoxSize = 1000 / zoomLevel;
-  svg.setAttribute('viewBox', `${-viewBoxSize / 2 + offsetX} ${-viewBoxSize / 2 + offsetY} ${viewBoxSize} ${viewBoxSize}`);
-  drawRadar();
+    const svg = document.getElementById('radar-map');
+    const viewBoxSize = 1000 / zoomLevel;
+    svg.setAttribute('viewBox', `${-viewBoxSize / 2 + offsetX} ${-viewBoxSize / 2 + offsetY} ${viewBoxSize} ${viewBoxSize}`);
+    drawRadar();
 }
 
 function startPan(event) {
-  isPanning = true;
-  startX = event.clientX;
-  startY = event.clientY;
-  document.getElementById('radar-map').style.cursor = 'grabbing';
+    isPanning = true;
+    startX = event.clientX;
+    startY = event.clientY;
+    document.getElementById('radar-map').style.cursor = 'grabbing';
 }
 
 function pan(event) {
-  if (!isPanning) return;
-  const dx = (event.clientX - startX) / zoomLevel;
-  const dy = (event.clientY - startY) / zoomLevel;
-  offsetX -= dx;
-  offsetY -= dy;
-  startX = event.clientX;
-  startY = event.clientY;
-  updateViewBox();
+    if (!isPanning) return;
+    const dx = (event.clientX - startX) / zoomLevel;
+    const dy = (event.clientY - startY) / zoomLevel;
+    offsetX -= dx;
+    offsetY -= dy;
+    startX = event.clientX;
+    startY = event.clientY;
+    updateViewBox();
 }
 
 function endPan() {
-  isPanning = false;
-  document.getElementById('radar-map').style.cursor = 'grab';
+    isPanning = false;
+    document.getElementById('radar-map').style.cursor = 'grab';
 }

@@ -15,6 +15,7 @@ const char* password_ap = AP_PASSWORD;
 
 void startWiFi() {
 
+  // Configuration ROUTER
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 

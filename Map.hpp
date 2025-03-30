@@ -82,27 +82,21 @@ void automatic_drive() {
 
     if (obstacleFront || obstacleLeft || obstacleRight) {
         stop_driving();
-        direction = "Stop";
-
         if (!obstacleLeft && obstacleFront && !obstacleRight) {
             // Jeśli przód jest zablokowany, ale boki wolne, skręć losowo
             if (random(0, 2) == 0) {
                 turn(turn_left, TURN_ANGLE, 255);
-                direction = "W lewo";
             } else {
                 turn(turn_right, TURN_ANGLE, 255);
-                direction = "W prawo";
             }
         } 
         else if (!obstacleLeft) {
             // Skręć w lewo, jeśli lewa strona jest wolna
             turn(turn_left, TURN_ANGLE / 2, 255);
-            direction = "W lewo";
         } 
         else if (!obstacleRight) {
             // Skręć w prawo, jeśli prawa strona jest wolna
             turn(turn_right, TURN_ANGLE / 2, 255);
-            direction = "W prawo";
         } 
         else {
             // Jeśli przód i oba boki są zablokowane
@@ -110,27 +104,21 @@ void automatic_drive() {
 
             if (turnAttempts >= MAX_ATTEMPTS) {
                 stop_driving();
-                direction = "Stop";
                 drive(backward, BACKUP_DISTANCE, 255);  
-                direction = "Do tyłu";
                 turn(turn_right, 180, 255);  
-                direction = "W prawo";
                 turnAttempts = 0;
             } else {
                 // Jeśli jeszcze nie było maksymalnych prób, skręć w miejsce z większą przestrzenią
                 if (frontLeft > frontRight) {
                     turn(turn_left, TURN_ANGLE / 2, 255);
-                    direction = "W lewo";
                 } else {
                     turn(turn_right, TURN_ANGLE / 2, 255);
-                    direction = "W prawo";
                 }
             }
         }
     } else {
         // Brak przeszkód - jedź do przodu
         forward();
-        direction = "Do przodu";
         turnAttempts = 0;  
     }
 }

@@ -36,7 +36,7 @@ void setup()
 
   startWiFi();
 
-  startOTA();
+  //startOTA();
 
   TFTsetup();
 
@@ -69,7 +69,7 @@ void setup()
 
 void loop()
 {
-  ArduinoOTA.handle();
+  //ArduinoOTA.handle();
  
   Time_refresh();
 

@@ -27,97 +27,89 @@ bool busy_forward = false;
 String direction="Stop";
 
 // Function type for driving commands
-typedef void (*DriveFunction)();
+typedef void (*DirectionFunction)(); // Typ dla funkcji kierunku
 void forward();
 void backward();
 void turn_left();
 void turn_right();
 void stop_driving();
  
-// Function to drive the robot in different directions for a given distance at a given speed
-void drive(DriveFunction directionFunction, double targetDistance, int speed) {
-  if (speed < 0 || speed > maxSpeed) {
-    Serial.println("Invalid speed value. Speed should be between 0 and 255.");
-    return;
-  }
+ 
+// Aktualne położenie robota
+double robotX = 0.0;
+double robotY = 0.0;
+double robotAngle = 0.0; // Kąt w stopniach
 
-  ledcWrite(pwmChannelSpeed, speed);
-  //Serial.println(speed);
-  directionFunction(); // Call the passed function to set the direction
 
-  istargetDistanceTraveled = false; // Reset the flag to indicate target distance is not yet reached
-
-  // Loop until the target distance is reached
-  while (!istargetDistanceTraveled) {
-    double currentDistancePercentage = totalDistanceTraveled / targetDistance;
-
-    // Check if the specified targetDistance is greater than 90 cm
-    if (targetDistance > 90.0) {
-      double stopThreshold = targetDistance - 20.0; // Distance to start reducing speed before the end (in centimeters)
-      // Reduce the speed if 80% of the stop threshold distance is traveled
-      if (totalDistanceTraveled >= stopThreshold) {
-        int newSpeed = static_cast<int>(maxSpeed * 0.28); // Reduce speed to 28% of maxSpeed
-        ledcWrite(pwmChannelSpeed, newSpeed);
-         //Serial.print(newSpeed);
-        
-      }
-    } else {
-      // Reduce the speed if 80% of the target distance is traveled
-      if (currentDistancePercentage >= 0.8) {
-        int newSpeed = static_cast<int>(maxSpeed * 0.8); // Reduce speed to 80% of maxSpeed
-        ledcWrite(pwmChannelSpeed, newSpeed);
-        //Serial.print(newSpeed);
-      }
-    }
-
-    // Check the current state of the indent sensor
-    currentIndentState = digitalRead(ENCODER_PIN);
-  
-    // Detect indent changes
-    if (currentIndentState != previousIndentState) {
-      if (currentIndentState == HIGH) {
-        indents++;
-        //Serial.print(rotates);
-        //Serial.print(" rotates ");
-        //Serial.print(indents);
-        //Serial.println(" indents");
-      }
-      previousIndentState = currentIndentState;
-    }
-  
-    // Increment the rotation count when a certain number of indents is reached
-    if (indents == 20) {
-      rotates++;
-      indents = 0;
-    }
-
-    // Calculate and update the total distance traveled
-    totalDistanceTraveled = rotates * distancePerRotation + (indents * distancePerRotation / 20);
-
-    // Check if the target distance is reached
-    if (totalDistanceTraveled >= targetDistance) {
-      stop_driving();
-      Serial.print("Distance traveled: ");
-      Serial.println(totalDistanceTraveled);
-      istargetDistanceTraveled = true;
-      indents = 0;
-      rotates = 0;
-      totalDistanceTraveled = 0;
-      previousIndentState = false;
-      currentIndentState = false;
-    }
-  }
-  if(istargetDistanceTraveled){istargetDistanceTraveled=false; };
-  //busy_motors = false;
+void updatePosition(double startX, double startY, double distance, DirectionFunction dir) {
+  double directionCoeff = (dir == forward) ? 1 : -1;
+  robotX = startX + distance * cos(radians(robotAngle)) * directionCoeff;
+  robotY = startY + distance * sin(radians(robotAngle)) * directionCoeff;
 }
 
-void turn(DriveFunction directionFunction, double angleDegrees, int speed) {
-    // Calculate the required distance for the wheels to turn to achieve the desired angle
-    double rotationsRequired = angleDegrees / 360.0; // Calculate the fraction of a full rotation
-    double distanceRequired = (rotationsRequired * distancePerRotation)*4; // Calculate the distance needed
+void drive(DirectionFunction directionFunc, double targetDistance, int speed) {
+  if (speed < 0 || speed > maxSpeed) return;
 
-    // Drive the robot in the specified direction for the calculated distance
-    drive(directionFunction, distanceRequired, speed);
+  // Ustaw prędkość i kierunek
+  ledcWrite(pwmChannelSpeed, speed);
+  directionFunc(); // Wywołaj przekazaną funkcję (forward/backward)
+
+  double startX = robotX;
+  double startY = robotY;
+  double distanceTraveled = 0.0;
+  indents = 0;
+
+  while (abs(distanceTraveled) < abs(targetDistance)) {
+    currentIndentState = digitalRead(ENCODER_PIN);
+    if (currentIndentState != previousIndentState && currentIndentState == HIGH) {
+      indents++;
+      distanceTraveled = (indents / 20.0) * distancePerRotation;
+      
+      // Aktualizuj pozycję na bieżąco
+      updatePosition(startX, startY, distanceTraveled, directionFunc);
+    }
+    previousIndentState = currentIndentState;
+  }
+
+  stop_driving();
+  // Dokładna aktualizacja końcowej pozycji
+  updatePosition(startX, startY, targetDistance, directionFunc);
+}
+
+
+typedef void (*TurnFunction)(); // Typ dla funkcji skrętu
+
+void turn(TurnFunction turnDirection, double targetAngleDegrees, int speed) {
+  if (speed < 0 || speed > maxSpeed) return;
+
+  // Ustaw prędkość
+  ledcWrite(pwmChannelSpeed, speed);
+
+  // Wywołaj odpowiednią funkcję skrętu
+  turnDirection();
+
+  double startAngle = robotAngle;
+  double angleTraveled = 0.0;
+  indents = 0; // Reset enkodera
+
+  while (abs(angleTraveled) < abs(targetAngleDegrees)) {
+    // Aktualizacja enkodera (1 indent = 1.8 stopnia dla enkodera 200 CPR)
+    currentIndentState = digitalRead(ENCODER_PIN);
+    if (currentIndentState != previousIndentState && currentIndentState == HIGH) {
+      indents++;
+      angleTraveled = indents * 1.8; // Przelicz indenty na stopnie
+    }
+    previousIndentState = currentIndentState;
+  }
+
+  stop_driving();
+  // Aktualizuj kąt (uwzględniając kierunek)
+  if (turnDirection == turn_left) {
+    robotAngle = fmod(startAngle - abs(targetAngleDegrees), 360.0);
+  } else {
+    robotAngle = fmod(startAngle + abs(targetAngleDegrees), 360.0);
+  }
+  if (robotAngle < 0) robotAngle += 360.0;
 }
 
 
