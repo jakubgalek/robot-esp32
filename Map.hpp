@@ -1,5 +1,10 @@
 #include <ESP32Servo.h>
 
+static const int SERVO_PIN = 25;
+
+int pwmChannelServo = 0;
+int pwmFrequencyServo = 50;  // Frequency PWM (standard for servo)
+
 Servo servoMotor;
 
 volatile bool stopFlag = true; // Global variable containing servo state
@@ -20,8 +25,8 @@ void collect_distances_servo() {
 
         if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
             read_servo_sensors();
-            radarData[i][0] = measurement1;
-            radarData[i][1] = measurement2;
+            radarData[i][0] = measurement0;
+            radarData[i][1] = measurement1;
             xSemaphoreGive(xMutex);
         } else {
             Serial.println("Failed to take semaphore");
@@ -44,8 +49,8 @@ void collect_distances_servo() {
 
         if (xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
             read_servo_sensors();
-            radarData[i][0] = measurement1;
-            radarData[i][1] = measurement2;
+            radarData[i][0] = measurement0;
+            radarData[i][1] = measurement1;
             xSemaphoreGive(xMutex);
         } else {
             Serial.println("Failed to take semaphore");

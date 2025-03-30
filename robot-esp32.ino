@@ -14,21 +14,7 @@ volatile int radarData[numAngles][2];
 #include "Map.hpp"
 #include "Webpage.hpp"
 
-
-static const int SERVO_PIN = 25;
-
-const int pwmFrequency = 1000; // (1 kHz)
-const int pwmResolution = 8; // (8 bit)
-
-
-
-
-int pwmChannelServo = 0;  // Przykładowa nazwa kanału PWM
-int pwmFreq = 50;    // Częstotliwość PWM (standardowa dla serw)
-
-
 SemaphoreHandle_t xMutex;
-
 
 void setup() 
 {
@@ -56,11 +42,11 @@ void setup()
 
   refreshTFT();
 
-  ledcSetup(pwmChannelSpeed, pwmFrequency, pwmResolution);
+  ledcSetup(pwmChannelSpeed, pwmFrequencySpeed, pwmResolution);
   ledcAttachPin(SPEED_PIN, pwmChannelSpeed);
 
- ledcSetup(pwmChannelServo, pwmFreq, pwmResolution); 
- ledcAttachPin(SERVO_PIN, pwmChannelServo);
+  ledcSetup(pwmChannelServo, pwmFrequencyServo, pwmResolution); 
+  ledcAttachPin(SERVO_PIN, pwmChannelServo);
 
   servoMotor.attach(SERVO_PIN);
   servoMotor.write(0);

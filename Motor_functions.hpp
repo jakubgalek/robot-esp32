@@ -5,6 +5,10 @@
 PCF8574 pcf8574(0x20);
 
 #define SPEED_PIN 16
+
+const int pwmFrequencySpeed = 1000; // (1 kHz)
+const int pwmResolution = 8; // (8 bit)
+
 #define ENCODER_PIN 17
 
 const int maxSpeed = 255;  // Maximum speed value (0 - 255)
@@ -140,85 +144,85 @@ void forward() {
   busy_motors = true;
   busy_forward = true;
   direction = "Do przodu";
-  //Wheel A
+  //Wheel 1
   pcf8574.digitalWrite(0, LOW); 
   pcf8574.digitalWrite(1, HIGH);
-  //Wheel B
-  pcf8574.digitalWrite(6, LOW);
-  pcf8574.digitalWrite(7, HIGH); 
-  //Wheel C
+  //Wheel 2
+  pcf8574.digitalWrite(2, HIGH);
+  pcf8574.digitalWrite(3, LOW); 
+  //Wheel 3
   pcf8574.digitalWrite(4, LOW);
   pcf8574.digitalWrite(5, HIGH); 
-  //Wheel D
-  pcf8574.digitalWrite(2, LOW);
-  pcf8574.digitalWrite(3, HIGH); 
+  //Wheel 4
+  pcf8574.digitalWrite(6, HIGH);
+  pcf8574.digitalWrite(7, LOW); 
 }
  
 void backward() {
   busy_motors = true;
   direction = "Do tyłu";
-  //Wheel A
+  //Wheel 1
   pcf8574.digitalWrite(0, HIGH); 
   pcf8574.digitalWrite(1, LOW);
-  //Wheel B
-  pcf8574.digitalWrite(6, HIGH);
-  pcf8574.digitalWrite(7, LOW); 
-  //Wheel C
+  //Wheel 2
+  pcf8574.digitalWrite(2, LOW);
+  pcf8574.digitalWrite(3, HIGH); 
+  //Wheel 3
   pcf8574.digitalWrite(4, HIGH);
   pcf8574.digitalWrite(5, LOW); 
-  //Wheel D
-  pcf8574.digitalWrite(2, HIGH);
-  pcf8574.digitalWrite(3, LOW); 
+  //Wheel 4
+  pcf8574.digitalWrite(6, LOW);
+  pcf8574.digitalWrite(7, HIGH); 
 }
  
 void turn_left() {
   busy_motors = true;
   direction = "W lewo";
-  //Wheel A
-  pcf8574.digitalWrite(0, HIGH); 
-  pcf8574.digitalWrite(1, LOW);
-  //Wheel B
-  pcf8574.digitalWrite(6, LOW);
-  pcf8574.digitalWrite(7, HIGH); 
-  //Wheel C
-  pcf8574.digitalWrite(4, LOW);
-  pcf8574.digitalWrite(5, HIGH); 
-  //Wheel D
+  //Wheel 1
+  pcf8574.digitalWrite(0, LOW); 
+  pcf8574.digitalWrite(1, HIGH);
+  //Wheel 2
   pcf8574.digitalWrite(2, HIGH);
   pcf8574.digitalWrite(3, LOW); 
+  //Wheel 3
+  pcf8574.digitalWrite(4, HIGH);
+  pcf8574.digitalWrite(5, LOW); 
+  //Wheel 4
+  pcf8574.digitalWrite(6, LOW);
+  pcf8574.digitalWrite(7, HIGH); 
 }
  
 void turn_right() {
   busy_motors = true;
   direction = "W prawo";
-  //Wheel A
-  pcf8574.digitalWrite(0, LOW); 
-  pcf8574.digitalWrite(1, HIGH);
-  //Wheel B
-  pcf8574.digitalWrite(6, HIGH);
-  pcf8574.digitalWrite(7, LOW); 
-  //Wheel C
-  pcf8574.digitalWrite(4, HIGH);
-  pcf8574.digitalWrite(5, LOW); 
-  //Wheel D
+  //Wheel 1
+  pcf8574.digitalWrite(0, HIGH); 
+  pcf8574.digitalWrite(1, LOW);
+  //Wheel 2
   pcf8574.digitalWrite(2, LOW);
   pcf8574.digitalWrite(3, HIGH); 
+  //Wheel 3
+  pcf8574.digitalWrite(4, LOW);
+  pcf8574.digitalWrite(5, HIGH); 
+  //Wheel 4
+  pcf8574.digitalWrite(6, HIGH);
+  pcf8574.digitalWrite(7, LOW); 
 }
  
 void stop_driving() {
   busy_motors = false;
   busy_forward = false;
   direction = "Stop";
-  //Wheel A
+  //Wheel 1
   pcf8574.digitalWrite(0, LOW); 
   pcf8574.digitalWrite(1, LOW);
-  //Wheel B
-  pcf8574.digitalWrite(6, LOW);
-  pcf8574.digitalWrite(7, LOW); 
-  //Wheel C
-  pcf8574.digitalWrite(4, LOW);
-  pcf8574.digitalWrite(5, LOW); 
-  //Wheel D
+  //Wheel 2
   pcf8574.digitalWrite(2, LOW);
   pcf8574.digitalWrite(3, LOW); 
+  //Wheel 3
+  pcf8574.digitalWrite(4, LOW);
+  pcf8574.digitalWrite(5, LOW); 
+  //Wheel 4
+  pcf8574.digitalWrite(6, LOW);
+  pcf8574.digitalWrite(7, LOW); 
 }
