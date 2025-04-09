@@ -37,8 +37,8 @@
 				<div class="div4"><button class="pulsebutton" id="MOTOR4" ontouchstart="GetButton4up()" onmousedown="GetButton4up()" onmouseup="GetButton4down()" ontouchend="GetButton4down()"><i class="icon-right-open"></i></button></div>
 			</div>
 				<div class="slidecontainer" id="slideContainer">
-					<p >Prędkość: <span id="value">200</span></p>
-					<input type="range" min="140" max="255" value="200" class="slider" id="myRange" >
+					<p >Prędkość: <span id="value">160</span></p>
+					<input type="range" min="140" max="255" value="160" class="slider" id="myRange" >
 				</div>
 				<button id="showSliderButton">Pokaż prędkość</button>
             </main>
@@ -65,30 +65,26 @@
             <g id="grid-group">
               <rect x="-5000" y="-5000" width="10000" height="10000" fill="url(#grid)" />
             </g>
-			<g id="robot">
-			  <!-- POWIĘKSZONY KORPUS POJAZDU -->
-			  <rect x="-30" y="-18" width="60" height="36" fill="blue" rx="4" /> <!-- TYŁ (NIEBIESKI) -->
-			  <rect x="-30" y="-18" width="24" height="36" fill="gray" rx="4" />  <!-- PRZÓD (SZARY) -->
-			  
-			  <!-- KOŁA PROSTOKĄTNE -->
-			  <!-- Tylne koła -->
-			  <rect x="-30" y="22" width="24" height="12" fill="white" stroke="gray" stroke-width="2" rx="2" />
-			  <rect x="6" y="22" width="24" height="12" fill="white" stroke="gray" stroke-width="2" rx="2" />
-			  
-			  <!-- Przednie koła -->
-			  <rect x="-30" y="-34" width="24" height="12" fill="white" stroke="gray" stroke-width="2" rx="2" />
-			  <rect x="6" y="-34" width="24" height="12" fill="white" stroke="gray" stroke-width="2" rx="2" />
-			  
-			  <!-- DODATKOWE ELEMENTY -->
-			  <!-- Reflektor (żółty) -->
-			  <rect x="30" y="-6" width="5" height="12" fill="yellow" />
-			</g>
             <g id="radar-points"></g>
             <g id="scale">
               <line x1="0" y1="-1000" x2="0" y2="1000" stroke="#3498db" stroke-width="2" stroke-dasharray="5,5" />
               <line x1="-1000" y1="0" x2="1000" y2="0" stroke="#3498db" stroke-width="2" stroke-dasharray="5,5" />
               <text x="10" y="-10" font-family="Arial" font-size="20" fill="#3498db">0</text>
             </g>
+			<g id="robot">
+			  <!-- Korpus pojazdu -->
+			  <rect x="-25" y="-15" width="50" height="30" fill="#A0A0A0" rx="10" stroke="black" stroke-width="1.5"/>
+			  <rect x="0" y="-15" width="25" height="30" fill="#3A7BD5" rx="10" stroke="black" stroke-width="1.5"/>
+
+			  <!-- Koła prostokątne -->
+			  <rect x="-30" y="-28" width="24" height="12" fill="black" stroke="gray" stroke-width="2" rx="2" />
+			  <rect x="6" y="-28" width="24" height="12" fill="black" stroke="gray" stroke-width="2" rx="2" />
+			  <rect x="-30" y="18" width="24" height="12" fill="black" stroke="gray" stroke-width="2" rx="2" />
+			  <rect x="6" y="18" width="24" height="12" fill="black" stroke="gray" stroke-width="2" rx="2" />
+			  
+			  <!-- Reflektor -->
+			  <rect x="30" y="-6" width="5" height="12" fill="yellow" />
+			</g>
           </svg>
         </main>
       </div>

@@ -5,113 +5,128 @@
 PCF8574 pcf8574(0x20);
 
 #define SPEED_PIN 16
-
-const int pwmFrequencySpeed = 1000; // (1 kHz)
-const int pwmResolution = 8; // (8 bit)
+const int pwmFrequencySpeed = 1000; // 1 kHz
+const int pwmResolution = 8;         // 8 bit
 
 #define ENCODER_PIN 17
 
-const int maxSpeed = 255;  // Maximum speed value (0 - 255)
-int pwmChannelSpeed = 9;
-int rotates = 0;
-int indents = 0;
-bool previousIndentState;
-bool currentIndentState = false;
-double totalDistanceTraveled = 0; // Total distance traveled in centimeters
-double istargetDistanceTraveled = false;
-const double distancePerRotation = 20.8; // Measured circumference of the wheel in centimeters
+// Używamy zmiennej globalnej do zliczania impulsów z enkodera
+volatile long indents = 0;
+unsigned long lastInterruptTime = 0;
+unsigned long debounceDelay = 5; // 5 ms debouncing
 
+volatile int motorSpeed = 160;
+volatile const int maxSpeed = 255;  // Maksymalna wartość prędkości (0-255)
+int pwmChannelSpeed = 9;
 bool busy_motors = false; 
 bool busy_forward = false; 
+bool busy_backward = false; 
+String direction = "Stop";
 
-String direction="Stop";
+// Dane robota dla jazdy liniowej
+double robotX = 0.0;
+double robotY = 0.0;
+double robotAngle = 0.0; // kąt w stopniach
 
-// Function type for driving commands
-typedef void (*DirectionFunction)(); // Typ dla funkcji kierunku
+// Parametry fizyczne
+const double distancePerRotation = 22.3;   // Obwód koła [cm]
+const int encoderIndentsPerRotation = 20;    // Liczba impulsów na obrót koła
+// Każdy impuls odpowiada przesunięciu (w cm):
+const double distancePerIndent = (distancePerRotation / encoderIndentsPerRotation)/2; // 22.3/20 ≈ 1.115 cm
+
+// Parametr do obrotu – efektywny promień skrętu robota [cm]. 
+// (Dla robota obracającego się w miejscu będzie to odległość od środka obrotu do punktu styku koła)
+const double turningRadius = 7.5;
+
+// Deklaracje funkcji sterujących
+typedef void (*DirectionFunction)();
 void forward();
 void backward();
 void turn_left();
 void turn_right();
 void stop_driving();
- 
- 
-// Aktualne położenie robota
-double robotX = 0.0;
-double robotY = 0.0;
-double robotAngle = 0.0; // Kąt w stopniach
 
+typedef void (*TurnFunction)();
 
+// Funkcja przerwania enkodera z debouncingiem
+void encoderInterrupt() {
+  unsigned long interruptTime = millis();
+  if (interruptTime - lastInterruptTime > debounceDelay) {
+    indents++;  // Zliczamy impuls, jeżeli minął czas debouncingu
+  }
+  lastInterruptTime = interruptTime;
+}
+
+// Funkcja aktualizująca pozycję robota dla jazdy do przodu/tyłu
 void updatePosition(double startX, double startY, double distance, DirectionFunction dir) {
+  // Przyjmujemy, że dla jazdy do przodu kierunek dodatni, a do tyłu ujemny
   double directionCoeff = (dir == forward) ? 1 : -1;
   robotX = startX + distance * cos(radians(robotAngle)) * directionCoeff;
   robotY = startY + distance * sin(radians(robotAngle)) * directionCoeff;
 }
 
+// Funkcja jazdy liniowej wykorzystująca przelicznik impulsów (1 impuls = 1,115 cm)
 void drive(DirectionFunction directionFunc, double targetDistance, int speed) {
   if (speed < 0 || speed > maxSpeed) return;
 
-  // Ustaw prędkość i kierunek
+  // Ustawiamy prędkość i kierunek jazdy
   ledcWrite(pwmChannelSpeed, speed);
-  directionFunc(); // Wywołaj przekazaną funkcję (forward/backward)
+  directionFunc();  // np. forward() lub backward()
 
   double startX = robotX;
   double startY = robotY;
   double distanceTraveled = 0.0;
+  
+  // Reset licznika impulsów
+  noInterrupts();
   indents = 0;
+  interrupts();
 
-  while (abs(distanceTraveled) < abs(targetDistance)) {
-    currentIndentState = digitalRead(ENCODER_PIN);
-    if (currentIndentState != previousIndentState && currentIndentState == HIGH) {
-      indents++;
-      distanceTraveled = (indents / 20.0) * distancePerRotation;
-      
-      // Aktualizuj pozycję na bieżąco
-      updatePosition(startX, startY, distanceTraveled, directionFunc);
-    }
-    previousIndentState = currentIndentState;
+  // Pętla zliczająca impulsami przejechany dystans
+  while (fabs(distanceTraveled) < fabs(targetDistance)) {
+    // Każdy impuls przekłada się na distancePerIndent [cm]
+    distanceTraveled = indents * distancePerIndent;
+    updatePosition(startX, startY, distanceTraveled, directionFunc);
   }
 
   stop_driving();
-  // Dokładna aktualizacja końcowej pozycji
+  // Korekta końcowej pozycji
   updatePosition(startX, startY, targetDistance, directionFunc);
 }
 
-
-typedef void (*TurnFunction)(); // Typ dla funkcji skrętu
-
+// Funkcja obrotu – obliczamy kąt na podstawie przebytego dystansu
 void turn(TurnFunction turnDirection, double targetAngleDegrees, int speed) {
   if (speed < 0 || speed > maxSpeed) return;
 
-  // Ustaw prędkość
+  // Ustawiamy prędkość i kierunek obrotu
   ledcWrite(pwmChannelSpeed, speed);
+  turnDirection();  // turn_left() lub turn_right()
 
-  // Wywołaj odpowiednią funkcję skrętu
-  turnDirection();
+  // Reset licznika impulsów
+  noInterrupts();
+  indents = 0;
+  interrupts();
 
-  double startAngle = robotAngle;
-  double angleTraveled = 0.0;
-  indents = 0; // Reset enkodera
-
-  while (abs(angleTraveled) < abs(targetAngleDegrees)) {
-    // Aktualizacja enkodera (1 indent = 1.8 stopnia dla enkodera 200 CPR)
-    currentIndentState = digitalRead(ENCODER_PIN);
-    if (currentIndentState != previousIndentState && currentIndentState == HIGH) {
-      indents++;
-      angleTraveled = indents * 1.8; // Przelicz indenty na stopnie
-    }
-    previousIndentState = currentIndentState;
+  // Przyjmujemy, że gdy robot obraca się w miejscu, każdy impuls powoduje przesunięcie koła o distancePerIndent [cm].
+  // Przebyty dystans (dla jednego koła) przekłada się na kąt obrotu robota:
+  // kąt [w stopniach] = (dystans / (2π * turningRadius)) * 360
+  while (true) {
+    double distanceTravelled = indents * distancePerIndent;
+    double angleTraveled = (distanceTravelled / (2 * PI * turningRadius)) * 360.0;
+    if (fabs(angleTraveled) >= fabs(targetAngleDegrees)) break;
   }
 
   stop_driving();
-  // Aktualizuj kąt (uwzględniając kierunek)
+
+  // Aktualizacja kąta robota – jeśli obrót w lewo, odejmujemy, w prawo dodajemy
+  double startAngle = robotAngle;
   if (turnDirection == turn_left) {
-    robotAngle = fmod(startAngle - abs(targetAngleDegrees), 360.0);
+    robotAngle = fmod(startAngle - fabs(targetAngleDegrees), 360.0);
   } else {
-    robotAngle = fmod(startAngle + abs(targetAngleDegrees), 360.0);
+    robotAngle = fmod(startAngle + fabs(targetAngleDegrees), 360.0);
   }
   if (robotAngle < 0) robotAngle += 360.0;
 }
-
 
 void pcf8574_init() {
   for (int i = 0; i < 8; i++) {
@@ -152,6 +167,7 @@ void forward() {
  
 void backward() {
   busy_motors = true;
+  busy_backward = true; 
   direction = "Do tyłu";
   //Wheel 1
   pcf8574.digitalWrite(0, HIGH); 
@@ -204,6 +220,7 @@ void turn_right() {
 void stop_driving() {
   busy_motors = false;
   busy_forward = false;
+  busy_backward = false; 
   direction = "Stop";
   //Wheel 1
   pcf8574.digitalWrite(0, LOW); 

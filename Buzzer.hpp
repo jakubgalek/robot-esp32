@@ -10,17 +10,17 @@ unsigned long buzzerPreviousMillis = 0;
 const unsigned long buzzerInterval = 1500; // Buzzer sound interval in milliseconds
 bool buzzerActive = false;
 
-int pwmChannelBuzzer = 12;
+int pwmChannelBuzzer = 4;
 
 bool checkVoltagesAlarm();
 void buzzerControl();
 
 /* ------------------------------------------------- */
 void Buzzer_setup() {
-  ledcSetup(pwmChannelBuzzer, 1000, 8); // Settings: PWM channel, frequency 1000 Hz, resolution 8 bits
-  ledcAttachPin(BUZZER_PIN, 4); // Assign the BUZZER_PIN pin to the selected PWM channel
-
-  Serial.println("Buzzer setup completed.");
+  Serial.println("🔄Buzzer loading...");
+  ledcSetup(pwmChannelBuzzer, 1000, 8);                  // Settings: PWM channel, frequency 1000 Hz, resolution 8 bits
+  ledcAttachPin(BUZZER_PIN, pwmChannelBuzzer);           // Assign the BUZZER_PIN pin to the selected PWM channel
+  Serial.println("✅Buzzer setup completed");
 }
 /* ------------------------------------------------- */
 void Buzzer_reload() {

@@ -6,8 +6,9 @@ RTCDateTime dt;
 /* ------------------------------------------------- */
 void Time_init() {
   // Initialize DS3231
-  Serial.println("Initialize DS3231");
+  Serial.println("🔄Starting DS3231...");
   rtcClock.begin();
+  Serial.println("✅Initialized DS3231");
   //rtcClock.setDateTime(__DATE__, __TIME__);
 }
 /* ------------------------------------------------- */

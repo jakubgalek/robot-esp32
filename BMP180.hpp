@@ -7,7 +7,7 @@ Adafruit_BMP085 bmp;
 /* ------------------------------------------------- */
 void BMP_init() {
   if (!bmp.begin()) {
-    Serial.println("Could not find a valid BMP085 sensor, check wiring!");
+    Serial.println("Could not find a valid BMP180 sensor, check wiring!");
   }
 }
 /* ------------------------------------------------- */
