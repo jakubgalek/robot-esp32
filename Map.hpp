@@ -1,5 +1,7 @@
 #include <ESP32Servo.h>
 
+volatile int radarData[180][2];
+
 static const int SERVO_PIN = 25;
 
 int pwmChannelServo = 0;
@@ -29,7 +31,7 @@ void collect_distances_servo() {
             radarData[i][1] = measurement1;
             xSemaphoreGive(xMutex);
         } else {
-            Serial.println("Failed to take semaphore");
+            Serial.println("❌Failed to take semaphore");
         }
 
         servoMotor.write(i);
@@ -53,7 +55,7 @@ void collect_distances_servo() {
             radarData[i][1] = measurement1;
             xSemaphoreGive(xMutex);
         } else {
-            Serial.println("Failed to take semaphore");
+            Serial.println("❌Failed to take semaphore");
         }
 
         servoMotor.write(i);
@@ -63,14 +65,14 @@ void collect_distances_servo() {
 
 
 #define SAFE_DISTANCE 35
-#define TURN_ANGLE 90
+#define TURN_ANGLE 45
 #define DRIVE_DISTANCE 15  
 #define BACKUP_DISTANCE 20  
 #define MAX_ATTEMPTS 4     
 
 void automatic_drive() {
     static int turnAttempts = 0;  // Licznik prób skrętu
-    read_five_sensors(); 
+    read_obstacle_sensors(); 
     
     float frontLeft = measurement3;
     float frontCenter = measurement4;
@@ -82,27 +84,21 @@ void automatic_drive() {
 
     if (obstacleFront || obstacleLeft || obstacleRight) {
         stop_driving();
-        direction = "Stop";
-
         if (!obstacleLeft && obstacleFront && !obstacleRight) {
             // Jeśli przód jest zablokowany, ale boki wolne, skręć losowo
             if (random(0, 2) == 0) {
-                turn(turn_left, TURN_ANGLE, 255);
-                direction = "W lewo";
+                turn(turn_left, TURN_ANGLE, motorSpeed);
             } else {
-                turn(turn_right, TURN_ANGLE, 255);
-                direction = "W prawo";
+                turn(turn_right, TURN_ANGLE, motorSpeed);
             }
         } 
         else if (!obstacleLeft) {
             // Skręć w lewo, jeśli lewa strona jest wolna
-            turn(turn_left, TURN_ANGLE / 2, 255);
-            direction = "W lewo";
+            turn(turn_left, TURN_ANGLE / 2, motorSpeed);
         } 
         else if (!obstacleRight) {
             // Skręć w prawo, jeśli prawa strona jest wolna
-            turn(turn_right, TURN_ANGLE / 2, 255);
-            direction = "W prawo";
+            turn(turn_right, TURN_ANGLE / 2, motorSpeed);
         } 
         else {
             // Jeśli przód i oba boki są zablokowane
@@ -110,27 +106,21 @@ void automatic_drive() {
 
             if (turnAttempts >= MAX_ATTEMPTS) {
                 stop_driving();
-                direction = "Stop";
-                drive(backward, BACKUP_DISTANCE, 255);  
-                direction = "Do tyłu";
-                turn(turn_right, 180, 255);  
-                direction = "W prawo";
+                drive(backward, BACKUP_DISTANCE, motorSpeed);  
+                turn(turn_right, 180, motorSpeed);  
                 turnAttempts = 0;
             } else {
                 // Jeśli jeszcze nie było maksymalnych prób, skręć w miejsce z większą przestrzenią
                 if (frontLeft > frontRight) {
-                    turn(turn_left, TURN_ANGLE / 2, 255);
-                    direction = "W lewo";
+                    turn(turn_left, TURN_ANGLE / 2, motorSpeed);
                 } else {
-                    turn(turn_right, TURN_ANGLE / 2, 255);
-                    direction = "W prawo";
+                    turn(turn_right, TURN_ANGLE / 2, motorSpeed);
                 }
             }
         }
     } else {
         // Brak przeszkód - jedź do przodu
         forward();
-        direction = "Do przodu";
         turnAttempts = 0;  
     }
 }

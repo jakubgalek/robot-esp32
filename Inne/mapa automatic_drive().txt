@@ -1,0 +1,78 @@
+void automatic_drive() {
+    static int turnAttempts = 0;  // Licznik prób skrętu
+    static unsigned long lastChangeTime = 0;  // Zmienna do śledzenia czasu
+    static bool drivingPhase = true;  // Flaga wskazująca, która część funkcji jest aktywna
+    
+    // Sprawdzanie, czy 10 sekund minęło od ostatniej zmiany
+    if (millis() - lastChangeTime >= 12000) {  // Po 10 sekundach
+        lastChangeTime = millis();
+        if (drivingPhase) {
+            stopFlag = false;
+            RADAR_state = 1;
+        } else {
+            stopFlag = true;
+            RADAR_state = 0;
+          stop_driving();
+          servoMotor.attach(25);
+          servoMotor.write(0);
+        }
+        drivingPhase = !drivingPhase;  // Zmiana fazy na przeciwną
+    }
+    
+    // Jeśli flagi wskazują na "czekanie", nie wykonuj dalszej części funkcji
+    if (stopFlag == false && RADAR_state == 1) {
+        return;  // Zatrzymuje funkcję przez 10 sekund
+    }
+
+    read_obstacle_sensors(); 
+    
+    float frontLeft = measurement3;
+    float frontCenter = measurement4;
+    float frontRight = measurement5;
+
+    bool obstacleFront = frontCenter < SAFE_DISTANCE;
+    bool obstacleLeft = frontLeft < SAFE_DISTANCE;
+    bool obstacleRight = frontRight < SAFE_DISTANCE;
+
+    if (obstacleFront || obstacleLeft || obstacleRight) {
+        stop_driving();
+        if (!obstacleLeft && obstacleFront && !obstacleRight) {
+            // Jeśli przód jest zablokowany, ale boki wolne, skręć losowo
+            if (random(0, 2) == 0) {
+                turn(turn_left, TURN_ANGLE, motorSpeed);
+            } else {
+                turn(turn_right, TURN_ANGLE, motorSpeed);
+            }
+        } 
+        else if (!obstacleLeft) {
+            // Skręć w lewo, jeśli lewa strona jest wolna
+            turn(turn_left, TURN_ANGLE / 2, motorSpeed);
+        } 
+        else if (!obstacleRight) {
+            // Skręć w prawo, jeśli prawa strona jest wolna
+            turn(turn_right, TURN_ANGLE / 2, motorSpeed);
+        } 
+        else {
+            // Jeśli przód i oba boki są zablokowane
+            turnAttempts++;
+
+            if (turnAttempts >= MAX_ATTEMPTS) {
+                stop_driving();
+                drive(backward, BACKUP_DISTANCE, motorSpeed);  
+                turn(turn_right, 180, motorSpeed);  
+                turnAttempts = 0;
+            } else {
+                // Jeśli jeszcze nie było maksymalnych prób, skręć w miejsce z większą przestrzenią
+                if (frontLeft > frontRight) {
+                    turn(turn_left, TURN_ANGLE / 2, motorSpeed);
+                } else {
+                    turn(turn_right, TURN_ANGLE / 2, motorSpeed);
+                }
+            }
+        }
+    } else {
+        // Brak przeszkód - jedź do przodu
+         drive(forward, 10, motorSpeed); 
+        turnAttempts = 0;  
+    }
+}

@@ -34,35 +34,33 @@ void collect_distances_servo_Task(void *pvParameters) {
     }
 }
 
-
-
 void SetMOTORs() {
     // MOTOR 1
     if (server.hasArg("MOTOR1")) {
         MOTOR_state[0] = server.arg("MOTOR1").toInt();
-      if (MOTOR_state[0]==1 && !(measurement3 <= 10) && !(measurement4 <= 10) && !(measurement5 <= 10)){ledcWrite(pwmChannelSpeed, 200);forward();} else if(MOTOR_state[0]==0) stop_driving();
+      if (MOTOR_state[0]==1 && !(measurement3 <= 4) && !(measurement4 <= 10) && !(measurement5 <= 4)){drive(forward,50,160);} else if(MOTOR_state[0]==0) stop_driving();
     }
 
     // MOTOR 2
     if (server.hasArg("MOTOR2")) {
         MOTOR_state[1] = server.arg("MOTOR2").toInt();
-     if(MOTOR_state[1]==1){ledcWrite(pwmChannelSpeed, 200);backward();} else if(MOTOR_state[1]==0) stop_driving();
+     if(MOTOR_state[1]==1 ){backward();  } else if(MOTOR_state[1]==0) stop_driving();
     }
 
     // MOTOR 3
     if (server.hasArg("MOTOR3")) {
         MOTOR_state[2] = server.arg("MOTOR3").toInt();
-        if(MOTOR_state[2]==1){ledcWrite(pwmChannelSpeed, 220);turn(turn_left,90,255); direction = "W lewo";} else if(MOTOR_state[2]==0) stop_driving();
+        if(MOTOR_state[2]==1){turn(turn_left,90,motorSpeed);} else if(MOTOR_state[2]==0) stop_driving();
     }
 
     // MOTOR 4
     if (server.hasArg("MOTOR4")) {
         MOTOR_state[3] = server.arg("MOTOR4").toInt();
-       if(MOTOR_state[3]==1){ledcWrite(pwmChannelSpeed, 220);turn(turn_right,90,255); direction = "W prawo";} else if(MOTOR_state[3]==0) stop_driving();
+       if(MOTOR_state[3]==1){turn(turn_right,90,motorSpeed);} else if(MOTOR_state[3]==0) stop_driving();
     }
     // Speed Slider on website
     if (server.hasArg("Slider")) {
-        int motorSpeed = server.arg("Slider").toInt(); // Get speed value from the slider
+        motorSpeed = server.arg("Slider").toInt(); // Get speed value from the slider
         ledcWrite(pwmChannelSpeed, motorSpeed); // Set the motor speed
         //Serial.println(motorSpeed);
     }
@@ -87,14 +85,14 @@ void SetMOTORs() {
         else if(AUTO_DRIVE_state == 0)
         {
           if (AutomaticDriveTaskHandle != NULL) {
-                vTaskDelete(AutomaticDriveTaskHandle);
-        AutomaticDriveTaskHandle = NULL;
-        stop_driving();
+          vTaskDelete(AutomaticDriveTaskHandle);
+          AutomaticDriveTaskHandle = NULL;
+          stop_driving();
           servoMotor.attach(25);
-  servoMotor.write(0);
-        //Serial.print("stopFlag: ");
-        //Serial.println(stopFlag);  // Sprawdzenie wartości stopFlag
-             }
+          servoMotor.write(0);
+          //Serial.print("stopFlag: ");
+          //Serial.println(stopFlag);  // Sprawdzenie wartości stopFlag
+          }
         } 
     }
      // RADAR button on website
@@ -187,6 +185,10 @@ String xmlResponseBase() {
     }
     res += "</AUTO_DRIVE>\n";
 
+    res += "<robotX>" + String(robotX) + "</robotX>\n";
+    res += "<robotY>" + String(robotY) + "</robotY>\n";
+    res += "<robotAngle>" + String(robotAngle) + "</robotAngle>\n";
+
     res += "<RADAR>";
     if (RADAR_state) {
         res += "on";
@@ -205,6 +207,7 @@ String xmlResponseBase() {
 
 String xmlResponseWithRadar() {
     String res = "";
+      if (RADAR_state == 1) {
     for (int i = 0; i < 180; i++) {
         res += "<radarPoint>\n";
         res += "<angle>" + String(i) + "</angle>\n";
@@ -212,8 +215,10 @@ String xmlResponseWithRadar() {
         res += "<distance2>" + String(radarData[i][1]) + "</distance2>\n";
         res += "</radarPoint>\n";
     }
+    }
     res += "</radarData>\n";
     return res;
+      
 }
 
 String xmlResponse() {
@@ -295,10 +300,10 @@ void Web_init() {
 
   // mDNS initialization
   if (!MDNS.begin(hostname)) {
-    Serial.println("Error setting up mDNS");
+    Serial.println("❌Error setting up mDNS");
   } else {
     MDNS.addService("http", "tcp", 80); // Advertise a service (HTTP)
-    Serial.println("mDNS responder started");
+    Serial.println("✅mDNS responder started");
   }
 
   // Web server initialization
@@ -307,11 +312,12 @@ void Web_init() {
         if (!handleFileRead(server.uri()))
             server.send(404, "text/plain", "Not Found");
     });
+    
     server.begin();
-    Serial.println("HTTP server started");
+    Serial.println("✅HTTP server started");
 
       if (!SPIFFS.begin(true)) {
-        Serial.println("An Error has occurred while mounting SPIFFS");
+        Serial.println("❌An Error has occurred while mounting SPIFFS");
         return;
     } 
 }

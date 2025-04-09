@@ -1,7 +1,5 @@
 #include <Arduino.h>
 #include "WiFi_config.hpp"
-#define numAngles 180
-volatile int radarData[numAngles][2];
 #include <Wire.h>
 #include "Voltages.hpp"
 #include "Time.hpp"
@@ -22,6 +20,9 @@ void setup()
 
   Wire.begin();
 
+  pinMode(ENCODER_PIN, INPUT); // Ustawienie pinu enkodera jako wejście
+  attachInterrupt(digitalPinToInterrupt(ENCODER_PIN), encoderInterrupt, RISING); // Przerwanie na rosnącej krawędzi
+
   Time_init();
 
   Buzzer_setup();
@@ -36,7 +37,7 @@ void setup()
 
   startWiFi();
 
-  startOTA();
+  //startOTA();
 
   TFTsetup();
 
@@ -44,6 +45,8 @@ void setup()
 
   ledcSetup(pwmChannelSpeed, pwmFrequencySpeed, pwmResolution);
   ledcAttachPin(SPEED_PIN, pwmChannelSpeed);
+
+  ledcWrite(pwmChannelSpeed, motorSpeed);
 
   ledcSetup(pwmChannelServo, pwmFrequencyServo, pwmResolution); 
   ledcAttachPin(SERVO_PIN, pwmChannelServo);
@@ -69,7 +72,7 @@ void setup()
 
 void loop()
 {
-  ArduinoOTA.handle();
+  //ArduinoOTA.handle();
  
   Time_refresh();
 
@@ -78,16 +81,19 @@ void loop()
   server.handleClient();
   refreshTFT();
 
-  checkForwardDriveConditions();
+  checkDriveConditions();
   checkMotorsAndReloadBuzzer();
-  
-// Free thread memory test
 
-/*UBaseType_t stackWaterMark = uxTaskGetStackHighWaterMark(CollectDistancesTaskHandle);
+// Free thread memory test
+/*
+UBaseType_t stackWaterMark = uxTaskGetStackHighWaterMark(CollectDistancesTaskHandle);
 UBaseType_t stackWaterMark2 = uxTaskGetStackHighWaterMark(AutomaticDriveTaskHandle);
 
+Serial.print("FreeHeap: "); Serial.println(ESP.getFreeHeap());
 Serial.printf("Stack CollectDistancesTaskHandle: %u bytes\n", stackWaterMark);
 Serial.printf("Stack AutomaticDriveTaskHandle: %u bytes\n", stackWaterMark2);
 */
+
+
 
 }

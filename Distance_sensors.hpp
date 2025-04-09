@@ -62,24 +62,34 @@ int measurement0, measurement1, measurement2, measurement3, measurement4, measur
 TaskHandle_t AutomaticDriveTaskHandle  = NULL;
 TaskHandle_t CollectDistancesTaskHandle  = NULL;
 
-void checkForwardDriveConditions() {
-void read_five_sensors();
+
+void checkDriveConditions() {
+
+  void read_obstacle_sensors();
 
   if (AutomaticDriveTaskHandle==NULL)
   {
-    read_five_sensors();
+    read_obstacle_sensors();
 
     if (busy_forward == true)
     {
-      if (measurement3 <=7 || measurement4 <=50 || measurement5 <=7)
+      if (measurement3 <=4 || measurement4 <=35 || measurement5 <=4)
       {
         stop_driving();
       }
     }
+
+    //if (busy_backward == true)
+    //{
+      //if (measurement6 <= 7)
+     // {
+      //  stop_driving();
+      //}
+    //}
   }
 }
 
-void read_five_sensors() {
+void read_obstacle_sensors() {
   lox2.rangingTest(&measure2, false);
   lox3.rangingTest(&measure3, false);
   lox4.rangingTest(&measure4, false);
@@ -145,7 +155,7 @@ void setID() {
   expander.digitalWrite(SHT_LOX7, LOW);
 
   if (!lox0.begin(LOX0_ADDRESS)) {
-    Serial.println(F("Failed to boot 0 VL53L0X"));
+    Serial.println(F("❌Failed to boot 0 VL53L0X"));
     while (1);
   }
   delay(10);
@@ -160,7 +170,7 @@ void setID() {
   delay(10);
 
   if (!lox1.begin(LOX1_ADDRESS)) {
-    Serial.println(F("Failed to boot 1 VL53L0X"));
+    Serial.println(F("❌Failed to boot 1 VL53L0X"));
     while (1);
   }
   delay(10);
@@ -174,7 +184,7 @@ void setID() {
   delay(10);
 
   if (!lox2.begin(LOX2_ADDRESS)) {
-    Serial.println(F("Failed to boot 2 VL53L0X"));
+    Serial.println(F("❌Failed to boot 2 VL53L0X"));
     while (1);
   }
   delay(10);
@@ -187,7 +197,7 @@ void setID() {
   delay(10);
 
   if (!lox3.begin(LOX3_ADDRESS)) {
-    Serial.println(F("Failed to boot 3 VL53L0X"));
+    Serial.println(F("❌Failed to boot 3 VL53L0X"));
     while (1);
   }
   delay(10);
@@ -199,7 +209,7 @@ void setID() {
   delay(10);
 
   if (!lox4.begin(LOX4_ADDRESS)) {
-    Serial.println(F("Failed to boot 4 VL53L0X"));
+    Serial.println(F("❌Failed to boot 4 VL53L0X"));
     while (1);
   }
   delay(10);
@@ -210,7 +220,7 @@ void setID() {
   delay(10);
 
   if (!lox5.begin(LOX5_ADDRESS)) {
-    Serial.println(F("Failed to boot 5 VL53L0X"));
+    Serial.println(F("❌Failed to boot 5 VL53L0X"));
     while (1);
   }
   delay(10);
@@ -220,7 +230,7 @@ void setID() {
   delay(10);
 
   if (!lox6.begin(LOX6_ADDRESS)) {
-    Serial.println(F("Failed to boot 6 VL53L0X"));
+    Serial.println(F("❌Failed to boot 6 VL53L0X"));
     while (1);
   }
   delay(10);
@@ -228,16 +238,14 @@ void setID() {
   expander.digitalWrite(SHT_LOX7, HIGH);
 
   if (!lox7.begin(LOX7_ADDRESS)) {
-    Serial.println(F("Failed to boot 7 VL53L0X"));
+    Serial.println(F("❌Failed to boot 7 VL53L0X"));
     while (1);
   }
   delay(10);
 }
 
 void Distance_sensors_init() {
-
-  Serial.println("Shutdown pins inited...");
-  Serial.println("Starting...");
-
+  Serial.println("🔄Starting VL53L0X...");
   setID();
+  Serial.println("✅Shutdown pins VL53L0X inited");
 }
