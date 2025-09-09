@@ -1,6 +1,11 @@
 #pragma once
 #include <PCF8574.h>
 #include <math.h>
+#include <Wire.h>
+#include <MPU6050_light.h>
+
+#include <FS.h>
+#include <SPIFFS.h>
 
 PCF8574 pcf8574(0x20);
 
@@ -8,12 +13,12 @@ PCF8574 pcf8574(0x20);
 const int pwmFrequencySpeed = 1000; // 1 kHz
 const int pwmResolution = 8;         // 8 bit
 
-#define ENCODER_PIN 17
+#define ENCODER_PIN 34
 
 // Używamy zmiennej globalnej do zliczania impulsów z enkodera
 volatile long indents = 0;
-unsigned long lastInterruptTime = 0;
-unsigned long debounceDelay = 5; // 5 ms debouncing
+volatile unsigned long lastInterruptTime = 0;
+const unsigned long debounceDelayMicros = 5000;
 
 volatile int motorSpeed = 160;
 volatile const int maxSpeed = 255;  // Maksymalna wartość prędkości (0-255)
@@ -22,7 +27,7 @@ bool busy_motors = false;
 bool busy_forward = false; 
 bool busy_backward = false; 
 String direction = "Stop";
-
+  
 // Dane robota dla jazdy liniowej
 double robotX = 0.0;
 double robotY = 0.0;
@@ -50,11 +55,11 @@ typedef void (*TurnFunction)();
 
 // Funkcja przerwania enkodera z debouncingiem
 void encoderInterrupt() {
-  unsigned long interruptTime = millis();
-  if (interruptTime - lastInterruptTime > debounceDelay) {
-    indents++;  // Zliczamy impuls, jeżeli minął czas debouncingu
+  unsigned long interruptTime = micros();
+  if (interruptTime - lastInterruptTime > debounceDelayMicros) {
+    indents++;  // Zliczamy impuls, jeśli minął czas debouncigu
+    lastInterruptTime = interruptTime;
   }
-  lastInterruptTime = interruptTime;
 }
 
 // Funkcja aktualizująca pozycję robota dla jazdy do przodu/tyłu
@@ -95,36 +100,48 @@ void drive(DirectionFunction directionFunc, double targetDistance, int speed) {
 }
 
 // Funkcja obrotu – obliczamy kąt na podstawie przebytego dystansu
+MPU6050 mpu(Wire);
+unsigned long lastGyroTime = 0;
+float currentAngle = 0;
+
 void turn(TurnFunction turnDirection, double targetAngleDegrees, int speed) {
-  if (speed < 0 || speed > maxSpeed) return;
+  currentAngle = 0;
 
-  // Ustawiamy prędkość i kierunek obrotu
+  // Używamy micros() dla precyzyjnego pomiaru czasu
+  unsigned long lastGyroTime = micros();
+
+  // Start silników i kierunku obrotu
   ledcWrite(pwmChannelSpeed, speed);
-  turnDirection();  // turn_left() lub turn_right()
+  turnDirection();
 
-  // Reset licznika impulsów
-  noInterrupts();
-  indents = 0;
-  interrupts();
+  while (fabs(currentAngle) < fabs(targetAngleDegrees)) {
+    mpu.update();
 
-  // Przyjmujemy, że gdy robot obraca się w miejscu, każdy impuls powoduje przesunięcie koła o distancePerIndent [cm].
-  // Przebyty dystans (dla jednego koła) przekłada się na kąt obrotu robota:
-  // kąt [w stopniach] = (dystans / (2π * turningRadius)) * 360
-  while (true) {
-    double distanceTravelled = indents * distancePerIndent;
-    double angleTraveled = (distanceTravelled / (2 * PI * turningRadius)) * 360.0;
-    if (fabs(angleTraveled) >= fabs(targetAngleDegrees)) break;
+    float gyroZ = mpu.getGyroZ(); // prędkość obrotowa [°/s]
+
+    unsigned long nowMicros = micros();
+    float deltaTime = (nowMicros - lastGyroTime) / 1000000.0; // w sekundach
+    lastGyroTime = nowMicros;
+
+    // Ograniczamy maksymalny deltaTime, żeby uniknąć dużych skoków (np. jeśli coś chwilowo wstrzymało pętlę)
+    if (deltaTime > 0.02) deltaTime = 0.02; // max 20 ms
+
+    currentAngle += gyroZ * deltaTime;
+
+    yield();
+    //Serial.print("Kąt obrotu: ");
+    //Serial.println(currentAngle);
   }
 
   stop_driving();
 
-  // Aktualizacja kąta robota – jeśli obrót w lewo, odejmujemy, w prawo dodajemy
-  double startAngle = robotAngle;
+  // Aktualizacja kąta globalnego robota
   if (turnDirection == turn_left) {
-    robotAngle = fmod(startAngle - fabs(targetAngleDegrees), 360.0);
+    robotAngle -= fabs(currentAngle);
   } else {
-    robotAngle = fmod(startAngle + fabs(targetAngleDegrees), 360.0);
+    robotAngle += fabs(currentAngle);
   }
+  robotAngle = fmod(robotAngle, 360.0);
   if (robotAngle < 0) robotAngle += 360.0;
 }
 

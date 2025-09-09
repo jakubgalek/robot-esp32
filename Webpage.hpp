@@ -38,7 +38,7 @@ void SetMOTORs() {
     // MOTOR 1
     if (server.hasArg("MOTOR1")) {
         MOTOR_state[0] = server.arg("MOTOR1").toInt();
-      if (MOTOR_state[0]==1 && !(measurement3 <= 4) && !(measurement4 <= 10) && !(measurement5 <= 4)){drive(forward,50,160);} else if(MOTOR_state[0]==0) stop_driving();
+      if (MOTOR_state[0]==1 && !(measurement3 <= 4) && !(measurement4 <= 10) && !(measurement5 <= 4)){forward();  } else if(MOTOR_state[0]==0) stop_driving();
     }
 
     // MOTOR 2

@@ -1,5 +1,5 @@
 GPIO 16 - pwm speed
-GPIO 17 - encoder
+GPIO 34 - encoder
 GPIO 25 - servo
 GPIO 33 - buzzer
 
@@ -48,6 +48,7 @@ B - 0x16
 Expander (motors) - 0x20
 Expander (vl53l0x) - 0x24
 Voltage sensor INA3221 - 0x40
-BMP180 - 0x77
-DS3231 - 0x68
 DS3231 (EEPROM) - 0x57
+DS3231 - 0x68
+MPU6050 - 0x69
+BMP180 - 0x77

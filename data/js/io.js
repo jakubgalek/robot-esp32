@@ -379,7 +379,8 @@ function drawRadar() {
 
     radarHistory.forEach(point => {
         // Obliczamy pozycję punktu względem ORYGINALNEJ pozycji robota (z momentu skanowania)
-        const totalAngle = (point.angle - 90 + point.robotAngle) * (Math.PI / 180);
+        const totalAngle = (point.angle - 90) * (Math.PI / 180);
+
         
         const x1 = point.distance1 * Math.cos(totalAngle);
         const y1 = point.distance1 * Math.sin(totalAngle);
@@ -394,15 +395,15 @@ function drawRadar() {
 
         // Rysowanie punktów
         const point1 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        point1.setAttribute('cx', x1_final);
-        point1.setAttribute('cy', -y1_final);
+        point1.setAttribute('cx', -x1_final);
+        point1.setAttribute('cy', y1_final);
         point1.setAttribute('r', 3);
         point1.setAttribute('fill', 'orange');
         svg.appendChild(point1);
 
         const point2 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        point2.setAttribute('cx', x2_final);
-        point2.setAttribute('cy', -y2_final);
+        point2.setAttribute('cx', -x2_final);
+        point2.setAttribute('cy', y2_final);
         point2.setAttribute('r', 3);
         point2.setAttribute('fill', 'orange');
         svg.appendChild(point2);

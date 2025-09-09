@@ -79,13 +79,13 @@ void checkDriveConditions() {
       }
     }
 
-    //if (busy_backward == true)
-    //{
-      //if (measurement6 <= 7)
-     // {
-      //  stop_driving();
-      //}
-    //}
+    if (busy_backward == true)
+    {
+      if (measurement6 <= 7)
+      {
+        stop_driving();
+      }
+    }
   }
 }
 
