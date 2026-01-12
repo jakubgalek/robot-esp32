@@ -1,0 +1,5 @@
+# The build folder
+build/
+
+# Don't commit the WiFi credentials
+wifi_settings.h

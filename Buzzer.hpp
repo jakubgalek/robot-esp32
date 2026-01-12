@@ -1,10 +1,10 @@
 #define BUZZER_PIN 33
 
 const float minVoltageMotors = 5.0;
-const float maxVoltageMotors = 5.8;
+const float maxVoltageMotors = 7.0;
 
 const float minVoltageESP32 = 4.55;
-const float maxVoltageESP32 = 4.9;
+const float maxVoltageESP32 = 6.0;
 
 unsigned long buzzerPreviousMillis = 0;
 const unsigned long buzzerInterval = 1500; // Buzzer sound interval in milliseconds

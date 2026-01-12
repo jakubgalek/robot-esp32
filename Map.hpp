@@ -31,7 +31,7 @@ void collect_distances_servo() {
             radarData[i][1] = measurement1;
             xSemaphoreGive(xMutex);
         } else {
-            Serial.println("❌Failed to take semaphore");
+            Serial.println("Failed to take semaphore");
         }
 
         servoMotor.write(i);
@@ -55,7 +55,7 @@ void collect_distances_servo() {
             radarData[i][1] = measurement1;
             xSemaphoreGive(xMutex);
         } else {
-            Serial.println("❌Failed to take semaphore");
+            Serial.println("Failed to take semaphore");
         }
 
         servoMotor.write(i);
@@ -63,8 +63,7 @@ void collect_distances_servo() {
     }
 }
 
-
-#define SAFE_DISTANCE 35
+#define SAFE_DISTANCE 25
 #define TURN_ANGLE 45
 #define DRIVE_DISTANCE 15  
 #define BACKUP_DISTANCE 20  

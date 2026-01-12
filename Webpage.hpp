@@ -1,5 +1,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
+#include <ESPmDNS.h>
+#include <WiFiUdp.h>
 #include <SPIFFS.h>
 
 #define INDEX "/index.htm"
@@ -300,10 +302,10 @@ void Web_init() {
 
   // mDNS initialization
   if (!MDNS.begin(hostname)) {
-    Serial.println("❌Error setting up mDNS");
+    Serial.println("❌ Error setting up mDNS");
   } else {
     MDNS.addService("http", "tcp", 80); // Advertise a service (HTTP)
-    Serial.println("✅mDNS responder started");
+    Serial.println("✅ mDNS responder started");
   }
 
   // Web server initialization
@@ -314,10 +316,10 @@ void Web_init() {
     });
     
     server.begin();
-    Serial.println("✅HTTP server started");
+    Serial.println("✅ HTTP server started");
 
       if (!SPIFFS.begin(true)) {
-        Serial.println("❌An Error has occurred while mounting SPIFFS");
+        Serial.println("❌ An Error has occurred while mounting SPIFFS");
         return;
     } 
 }

@@ -336,7 +336,7 @@ const samePosition =
     currentRobotPosition.y === lastRadarRobotPose.y &&
     currentRobotPosition.angle === lastRadarRobotPose.angle;
 
-// Jeśli robot stoi w miejscu — usuń poprzednie punkty z tej pozycji
+// Jeśli robot stoi w miejscu – usuń poprzednie punkty z tej pozycji
 if (samePosition) {
     radarHistory = radarHistory.filter(
         point =>

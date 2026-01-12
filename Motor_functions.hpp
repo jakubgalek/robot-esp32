@@ -57,7 +57,7 @@ typedef void (*TurnFunction)();
 void encoderInterrupt() {
   unsigned long interruptTime = micros();
   if (interruptTime - lastInterruptTime > debounceDelayMicros) {
-    indents++;  // Zliczamy impuls, jeśli minął czas debouncigu
+    indents++;  // Zliczamy impuls, jeśli minął czas debouncingu
     lastInterruptTime = interruptTime;
   }
 }
