@@ -1864,7 +1864,8 @@ h6 {
   padding:0 !important;
 }
 
-.pulsebutton:active {
+.pulsebutton:active,
+.pulsebutton.pressed {
   box-shadow: inset 0px 0px 10px 1px rgb(0, 255, 157),
     0px 0px 20px 5px rgb(0, 255, 157);
   border: none;
@@ -2021,4 +2022,17 @@ margin-top: 3rem;
     .col-xs-12 .radar-panel {
       max-height: 40rem;
     }
+}
+
+/* Przyciski jazdy: bez przewijania/zaznaczania/menu kontekstowego przy przytrzymaniu na ekranie dotykowym */
+#MOTOR1, #MOTOR2, #MOTOR3, #MOTOR4 {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Mapa: przesuwanie palcem */
+#radar-map {
+  touch-action: none;
 }

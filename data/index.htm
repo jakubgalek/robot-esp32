@@ -1,179 +1,155 @@
 <!doctype html>
 <html lang="pl">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Panel robota ESP32</title>
-	<script src="js/io.js" async></script>
-    <link rel="stylesheet" href="css/style.css">
-	<link rel="stylesheet" href="css/button_arrows.css">
-	<link rel="shortcut icon" href="icon.png">
-  </head>
-  <body onload="GetArduinoIO()" onkeydown="activate(event)" onkeyup="disactivate(event)">
-    <header>
-      <h1>Panel robota ESP32</h1>
-    </header>
-    <nav>
-      <input type="checkbox" id="nav-menu-btn" />
-      <label for="nav-menu-btn"></label>
-      <ul>
-        <li><a href="#">Panel robota ESP32</a></li>
-      </ul>
-    </nav>
-    <main class="container-fluid">
-	
-	<div class="row">
-		  
-		<div class="col-xs-12 col-sm-12 col-md-3">
-          <div class="panel double success">
-            <header>
-              <h2>Sterowanie</h2>
-            </header>
-            <main>
-			 <div class="parent">
-				<div class="div1"><button class="pulsebutton" id="MOTOR1" ontouchstart="GetButton1up()" onmousedown="GetButton1up()" onmouseup="GetButton1down()" ontouchend="GetButton1down()"><i class="icon-up-open"></i></button></div>
-				<div class="div2"><button class="pulsebutton" id="MOTOR2" ontouchstart="GetButton2up()" onmousedown="GetButton2up()" onmouseup="GetButton2down()" ontouchend="GetButton2down()"><i class="icon-down-open"></i></button></div>
-				<div class="div3"><button class="pulsebutton" id="MOTOR3" ontouchstart="GetButton3up()" onmousedown="GetButton3up()" onmouseup="GetButton3down()" ontouchend="GetButton3down()"><i class="icon-left-open"></i></button></div>
-				<div class="div4"><button class="pulsebutton" id="MOTOR4" ontouchstart="GetButton4up()" onmousedown="GetButton4up()" onmouseup="GetButton4down()" ontouchend="GetButton4down()"><i class="icon-right-open"></i></button></div>
-			</div>
-				<div class="slidecontainer" id="slideContainer">
-					<p >Prędkość: <span id="value">160</span></p>
-					<input type="range" min="140" max="255" value="160" class="slider" id="myRange" >
-				</div>
-				<button id="showSliderButton">Pokaż prędkość</button>
-            </main>
-          </div>
-		  
-        </div>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f1722">
+  <title>Robot ESP32</title>
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="stylesheet" href="css/app.css">
+  <script src="js/app.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <h1>Robot ESP32</h1>
+  <div class="status">
+    <div class="conn" id="bt" title="Klawiatura Bluetooth"><i></i><span id="btText">Klawiatura Bluetooth</span></div>
+    <div class="conn" id="conn" title="Połączenie z robotem"><i></i><span id="connText">łączenie…</span></div>
+  </div>
+</header>
 
-    <div class="col-xs-12 col-sm-12 col-md-6">
-      <div class="panel double success radar-panel">
-        <header>
-		  <div class="zoom-controls">
-		  	  <button onclick="zoomOut()">-</button>
-			  <button onclick="zoomIn()">+</button>
-		  </div>
-          <h2>Radar</h2>
-        </header>
-        <main>
-          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="-500 -500 1000 1000" id="radar-map">
-            <defs>
-              <pattern id="grid" patternUnits="userSpaceOnUse" width="50" height="50" viewBox="0 0 50 50">
-                <rect width="50" height="50" fill="none" stroke-width="1" stroke="#7f8c8d" stroke-opacity="0.25" />
-              </pattern>
-            </defs>
-            <g id="grid-group">
-              <rect x="-5000" y="-5000" width="10000" height="10000" fill="url(#grid)" />
-            </g>
-            <g id="radar-points"></g>
-            <g id="scale">
-              <line x1="0" y1="-1000" x2="0" y2="1000" stroke="#3498db" stroke-width="2" stroke-dasharray="5,5" />
-              <line x1="-1000" y1="0" x2="1000" y2="0" stroke="#3498db" stroke-width="2" stroke-dasharray="5,5" />
-              <text x="10" y="-10" font-family="Arial" font-size="20" fill="#3498db">0</text>
-            </g>
-			<g id="robot">
-			  <!-- Korpus pojazdu -->
-			  <rect x="-25" y="-15" width="50" height="30" fill="#A0A0A0" rx="10" stroke="black" stroke-width="1.5"/>
-			  <rect x="0" y="-15" width="25" height="30" fill="#3A7BD5" rx="10" stroke="black" stroke-width="1.5"/>
-
-			  <!-- Koła prostokątne -->
-			  <rect x="-30" y="-28" width="24" height="12" fill="black" stroke="gray" stroke-width="2" rx="2" />
-			  <rect x="6" y="-28" width="24" height="12" fill="black" stroke="gray" stroke-width="2" rx="2" />
-			  <rect x="-30" y="18" width="24" height="12" fill="black" stroke="gray" stroke-width="2" rx="2" />
-			  <rect x="6" y="18" width="24" height="12" fill="black" stroke="gray" stroke-width="2" rx="2" />
-			  
-			  <!-- Reflektor -->
-			  <rect x="30" y="-6" width="5" height="12" fill="yellow" />
-			</g>
-          </svg>
-        </main>
+<main class="layout">
+  <section class="mapcard">
+    <div class="mapwrap" id="mapwrap">
+      <canvas id="map" aria-label="Mapa pomieszczenia"></canvas>
+      <div class="maptools">
+        <button class="tool" id="zoomIn" title="Przybliż">+</button>
+        <button class="tool" id="zoomOut" title="Oddal">−</button>
+        <button class="tool" id="fit" title="Dopasuj mapę do ekranu">⤢</button>
+        <button class="tool" id="follow" title="Śledź robota" aria-pressed="false">◎</button>
+      </div>
+      <div class="scanbar" id="scanbar" hidden><div id="scanfill"></div><span id="scantext">Skanowanie…</span></div>
+      <div class="legend">
+        <span><i class="lg free"></i>wolne</span>
+        <span><i class="lg wall"></i>przeszkoda</span>
+        <span><i class="lg pt"></i>ostatni skan</span>
       </div>
     </div>
-		
-		<div class="col-xs-12 col-sm-12 col-md-3">
-          <div class="panel info">
-            <header>
-              <h2>Napięcie Silniki</h2>
-            </header>
-            <main>
-              <h3><span class="voltageMotors">...</span>V</h3>
-            </main>
-        </div>
-		  
-		<div class="panel double success" id="zadania">
-            <header>
-              <h2>Zadania</h2>
-            </header>
-            <main>
-			  <button class="button_automatic" onclick="GetAutoDriveActive()"> Automatyczna jazda </button>
-			  <button class="button_radar" onclick="GetRadarActive()"> Uruchom radar </button>
-			  <!--<button class="button_trace"> Wyznacz trasę </button>!-->
-            </main>
-        </div>
-		  
-        </div>
-		
-        </div>
-      <div class="row">
+    <div class="mapstats">
+      <div><b id="stArea">–</b><small>wolna powierzchnia</small></div>
+      <div><b id="stPose">–</b><small>pozycja x, y [cm]</small></div>
+      <div><b id="stHead">–</b><small>kąt względem startu</small></div>
+      <div><b id="stPath">–</b><small>przejechane [m]</small></div>
+    </div>
+  </section>
 
-		
-		<div class="col-xs-12 col-sm-6 col-md-3">
-          <div class="panel info">
-            <header>
-              <h2>WiFi</h2>
-            </header>
-            <main>
-              <h3><span class="wifi">...</span></h3>
-            </main>
-          </div>
-        </div>
-		
-		<div class="col-xs-12 col-sm-6 col-md-3">
-          <div class="panel info">
-            <header>
-              <h2>Kierunek jazdy</h2>
-            </header>
-            <main>
-              <h3><span class="direction">...</span></h3>
-            </main>
-          </div>
-        </div>
-		
-        <div class="col-xs-12 col-sm-6 col-md-2">
-          <div class="panel info">
-            <header>
-              <h2>Temperatura</h2>
-            </header>
-            <main>
-              <h3><span class="temp">...</span>°C</h3>
-            </main>
-          </div>
-        </div>
-		
-		<div class="col-xs-12 col-sm-6 col-md-2">
-          <div class="panel info">
-            <header>
-              <h2>Wysokość</h2>
-            </header>
-            <main>
-              <h3><span class="altitude">...</span>m</h3>
-            </main>
-          </div>
-        </div>
-
-        <div class="col-xs-12 col-sm-6 col-md-2">
-          <div class="panel info">
-            <header>
-              <h2>Napięcie ESP32</h2>
-            </header>
-            <main>
-              <h3><span class="voltageESP32">...</span>V</h3>
-            </main>
-          </div>
-        </div>
-
+  <aside class="side">
+    <section class="card">
+      <h2>Sterowanie</h2>
+      <div class="dpad" role="group" aria-label="Jazda – trzymaj, aby jechać">
+        <button class="pad up" id="MOTOR1" aria-label="Do przodu"><svg viewBox="0 0 24 24"><path d="M12 5l8 10H4z"/></svg></button>
+        <button class="pad left" id="MOTOR3" aria-label="Obrót w lewo"><svg viewBox="0 0 24 24"><path d="M5 12l10-8v16z"/></svg></button>
+        <div class="padmid" id="dirText">Stop</div>
+        <button class="pad right" id="MOTOR4" aria-label="Obrót w prawo"><svg viewBox="0 0 24 24"><path d="M19 12L9 4v16z"/></svg></button>
+        <button class="pad down" id="MOTOR2" aria-label="Do tyłu"><svg viewBox="0 0 24 24"><path d="M12 19L4 9h16z"/></svg></button>
       </div>
-    </main>
-		<script src="js/speed_slider.js"></script>
-  </body>
+      <label class="speed">Prędkość <b id="speedVal">160</b>
+        <input type="range" id="speed" min="140" max="255" value="160">
+      </label>
+      <p class="hint">Trzymaj przycisk albo strzałki na klawiaturze. Puszczenie zatrzymuje robota.</p>
+    </section>
+
+    <section class="card">
+      <h2>Mapowanie</h2>
+      <div class="btns">
+        <button class="btn primary" id="bScan">Skanuj tutaj</button>
+        <button class="btn" id="bAuto">Zmapuj pokój automatycznie</button>
+        <button class="btn" id="bWall" title="Jedzie ciągle przy lewej ścianie (lewa ręka), bez skanowania i bez zapisu na mapie. Zatrzymanie: ten sam przycisk">Jedź przy lewej ścianie</button>
+        <button class="btn" id="bRefine" title="Robot jeździ po całym pokoju i robi dodatkowe skany z innych miejsc niż za pierwszym razem (uzupełnia luki i uśrednia szumy). Wymaga zmapowanego pokoju">Zwiększ dokładność mapy</button>
+        <button class="btn" id="bHome" title="Robot wraca po znanej mapie do miejsca, z którego wystartował (punkt 0,0) i ustawia się tak jak na starcie">Wróć na start</button>
+        <button class="btn" id="bLocate" title="Skanuje i szuka, w którym miejscu zapisanej mapy stoi robot - także po przeniesieniu go gdzie indziej (wymaga, żeby w zasięgu czujników było coś charakterystycznego, np. róg lub meble)">Odnajdź się na mapie</button>
+        <button class="btn" id="bPick" title="Gdy sam się nie odnajdzie: kliknij na mapie miejsce, w którym stoi robot - dokładną pozycję i kierunek wyznaczy skan">Wskaż, gdzie stoi robot</button>
+        <button class="btn" id="bAbort" hidden>Przerwij skan</button>
+      </div>
+      <div class="btns small">
+        <button class="btn ghost" id="bSave">Zapisz mapę</button>
+        <button class="btn ghost danger" id="bClear" title="Czyści mapę, a obecne położenie i kierunek robota stają się punktem (0,0)">Nowa mapa tutaj</button>
+      </div>
+      <p class="hint" id="exNote"></p>
+      <p class="hint" id="mapNote">–</p>
+    </section>
+
+    <section class="card">
+      <h2>Wymiary i eksport</h2>
+      <dl class="kv">
+        <dt>Szerokość (oś X)</dt><dd id="dimW">–</dd>
+        <dt>Długość (oś Y)</dt><dd id="dimL">–</dd>
+        <dt>Powierzchnia zbadana</dt><dd id="dimA">–</dd>
+        <dt>Zajęte (ściany, meble)</dt><dd id="dimO">–</dd>
+      </dl>
+      <div class="btns small">
+        <button class="btn" id="bPng">Pobierz obraz (PNG)</button>
+      </div>
+      <p class="hint" id="dimNote">Wymiary liczone z zeskanowanego obszaru (rozdzielczość 5 cm, czujniki ±1–2 cm). Mapa jest wyrównana do ścian, więc szerokość i długość są wzdłuż ścian.</p>
+    </section>
+
+    <section class="card">
+      <h2>Stan robota</h2>
+      <dl class="kv">
+        <dt>Akumulatory – silniki</dt><dd><span id="vMotors">–</span> V</dd>
+        <dt>Zasilanie logiki</dt><dd><span id="vEsp">–</span> V</dd>
+        <dt>WiFi</dt><dd id="wifi">–</dd>
+        <dt>Temperatura</dt><dd><span id="temp">–</span> °C</dd>
+        <dt>Wysokość</dt><dd><span id="alt">–</span> m</dd>
+        <dt>Wolny RAM (min.)</dt><dd><span id="heap">–</span> KB (<span id="minheap">–</span>)</dd>
+        <dt>Oś żyroskopu</dt><dd id="gsign">uczy się…</dd>
+      </dl>
+    </section>
+
+    <section class="card">
+      <h2>Czujniki</h2>
+      <table class="sens" id="sensTable"></table>
+      <p class="hint" id="sensNote"></p>
+      <div class="btns small"><button class="btn ghost" id="bRobotView" aria-expanded="false">Podgląd robota</button></div>
+      <div id="robotView" hidden></div>
+    </section>
+
+    <section class="card" id="savedCard">
+      <h2>Zapisane mapy</h2>
+      <div id="mapList" class="maplist"><p class="hint">–</p></div>
+      <div class="btns small">
+        <button class="btn ghost" id="bSaveSd">Zapisz bieżącą na karcie</button>
+        <button class="btn ghost" id="bReloadSd">Odśwież</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Parametry</h2>
+      <dl class="kv">
+        <dt>Kierunek (od startu)</dt><dd id="pHead">–</dd>
+        <dt>Żyroskop: obrót</dt><dd id="pGy">–</dd>
+        <dt>Żyroskop: dryf zera</dt><dd id="pBias">–</dd>
+        <dt>Cykl czujników (śr. / maks.)</dt><dd id="pCy">–</dd>
+        <dt>Ostatni skan</dt><dd id="pMatch">–</dd>
+        <dt>Automat</dt><dd id="pEx">–</dd>
+      </dl>
+    </section>
+
+    <section class="card">
+      <h2>Dziennik</h2>
+      <pre class="logbox" id="logBox">–</pre>
+      <div class="btns small"><button class="btn ghost" id="bCopyLog">Kopiuj dziennik</button></div>
+    </section>
+  </aside>
+</main>
+
+<div class="modal" id="mapModal" hidden>
+  <div class="modalbox">
+    <div class="modalhead"><b id="mapModalTitle">Podgląd mapy</b><button class="tool" id="mapModalClose" aria-label="Zamknij">✕</button></div>
+    <canvas id="prevCanvas" width="480" height="480"></canvas>
+    <p class="hint" id="prevInfo"></p>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
 </html>

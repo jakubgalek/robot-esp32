@@ -3,6 +3,7 @@
 #include <math.h>
 #include <Wire.h>
 #include <MPU6050_light.h>
+#include "I2C.hpp"
 
 #include <FS.h>
 #include <SPIFFS.h>
@@ -23,25 +24,15 @@ const unsigned long debounceDelayMicros = 5000;
 volatile int motorSpeed = 160;
 volatile const int maxSpeed = 255;  // Maksymalna wartość prędkości (0-255)
 int pwmChannelSpeed = 9;
-bool busy_motors = false; 
-bool busy_forward = false; 
-bool busy_backward = false; 
-String direction = "Stop";
-  
-// Dane robota dla jazdy liniowej
-double robotX = 0.0;
-double robotY = 0.0;
-double robotAngle = 0.0; // kąt w stopniach
+bool busy_motors = false;
+bool busy_forward = false;
+bool busy_backward = false;
 
-// Parametry fizyczne
-const double distancePerRotation = 22.3;   // Obwód koła [cm]
-const int encoderIndentsPerRotation = 20;    // Liczba impulsów na obrót koła
-// Każdy impuls odpowiada przesunięciu (w cm):
-const double distancePerIndent = (distancePerRotation / encoderIndentsPerRotation)/2; // 22.3/20 ≈ 1.115 cm
+// Kierunek jazdy dla UI. Zwykły wskaźnik na literał zamiast String:
+// String nie jest bezpieczny wątkowo (zapis z auto-jazdy/BLE, odczyt z serwera WWW).
+const char* volatile direction = "Stop";
 
-// Parametr do obrotu – efektywny promień skrętu robota [cm]. 
-// (Dla robota obracającego się w miejscu będzie to odległość od środka obrotu do punktu styku koła)
-const double turningRadius = 7.5;
+// Pozycja robota (x, y, kąt), droga z enkodera i żyroskop: patrz Odometry.hpp.
 
 // Deklaracje funkcji sterujących
 typedef void (*DirectionFunction)();
@@ -53,8 +44,10 @@ void stop_driving();
 
 typedef void (*TurnFunction)();
 
-// Funkcja przerwania enkodera z debouncingiem
-void encoderInterrupt() {
+// Funkcja przerwania enkodera z debouncingiem.
+// IRAM_ATTR jest obowiązkowe na ESP32 - bez tego crash, gdy cache flasha jest wyłączony
+// (zapis SPIFFS, operacje WiFi).
+void IRAM_ATTR encoderInterrupt() {
   unsigned long interruptTime = micros();
   if (interruptTime - lastInterruptTime > debounceDelayMicros) {
     indents++;  // Zliczamy impuls, jeśli minął czas debouncingu
@@ -62,88 +55,24 @@ void encoderInterrupt() {
   }
 }
 
-// Funkcja aktualizująca pozycję robota dla jazdy do przodu/tyłu
-void updatePosition(double startX, double startY, double distance, DirectionFunction dir) {
-  // Przyjmujemy, że dla jazdy do przodu kierunek dodatni, a do tyłu ujemny
-  double directionCoeff = (dir == forward) ? 1 : -1;
-  robotX = startX + distance * cos(radians(robotAngle)) * directionCoeff;
-  robotY = startY + distance * sin(radians(robotAngle)) * directionCoeff;
+// Stan ostatnio ustawiony na mostkach (PCF8574). Dzięki temu powtórne wywołanie
+// forward()/stop_driving() w każdej iteracji pętli nie generuje 8 transakcji I2C.
+enum MotionState { MOTION_UNKNOWN, MOTION_STOP, MOTION_FORWARD, MOTION_BACKWARD, MOTION_LEFT, MOTION_RIGHT };
+volatile MotionState currentMotion = MOTION_UNKNOWN;
+unsigned long lastMotionWrite = 0;
+const unsigned long MOTION_REFRESH_MS = 500; // co tyle odświeżamy stan, nawet jeśli bez zmian
+
+// Zwraca true, gdy PCF już ma ten stan (zapisany niedawno) - wtedy nie trzeba pisać ponownie.
+static bool motionUpToDate(MotionState s) {
+  unsigned long now = millis();
+  if (currentMotion == s && (now - lastMotionWrite) < MOTION_REFRESH_MS) return true;
+  currentMotion = s;
+  lastMotionWrite = now;
+  return false;
 }
 
-// Funkcja jazdy liniowej wykorzystująca przelicznik impulsów (1 impuls = 1,115 cm)
-void drive(DirectionFunction directionFunc, double targetDistance, int speed) {
-  if (speed < 0 || speed > maxSpeed) return;
-
-  // Ustawiamy prędkość i kierunek jazdy
-  ledcWrite(pwmChannelSpeed, speed);
-  directionFunc();  // np. forward() lub backward()
-
-  double startX = robotX;
-  double startY = robotY;
-  double distanceTraveled = 0.0;
-  
-  // Reset licznika impulsów
-  noInterrupts();
-  indents = 0;
-  interrupts();
-
-  // Pętla zliczająca impulsami przejechany dystans
-  while (fabs(distanceTraveled) < fabs(targetDistance)) {
-    // Każdy impuls przekłada się na distancePerIndent [cm]
-    distanceTraveled = indents * distancePerIndent;
-    updatePosition(startX, startY, distanceTraveled, directionFunc);
-  }
-
-  stop_driving();
-  // Korekta końcowej pozycji
-  updatePosition(startX, startY, targetDistance, directionFunc);
-}
-
-// Funkcja obrotu – obliczamy kąt na podstawie przebytego dystansu
+// Żyroskop. Odczytuje go wyłącznie odometria (zadanie czujników), patrz Odometry.hpp.
 MPU6050 mpu(Wire);
-unsigned long lastGyroTime = 0;
-float currentAngle = 0;
-
-void turn(TurnFunction turnDirection, double targetAngleDegrees, int speed) {
-  currentAngle = 0;
-
-  // Używamy micros() dla precyzyjnego pomiaru czasu
-  unsigned long lastGyroTime = micros();
-
-  // Start silników i kierunku obrotu
-  ledcWrite(pwmChannelSpeed, speed);
-  turnDirection();
-
-  while (fabs(currentAngle) < fabs(targetAngleDegrees)) {
-    mpu.update();
-
-    float gyroZ = mpu.getGyroZ(); // prędkość obrotowa [°/s]
-
-    unsigned long nowMicros = micros();
-    float deltaTime = (nowMicros - lastGyroTime) / 1000000.0; // w sekundach
-    lastGyroTime = nowMicros;
-
-    // Ograniczamy maksymalny deltaTime, żeby uniknąć dużych skoków (np. jeśli coś chwilowo wstrzymało pętlę)
-    if (deltaTime > 0.02) deltaTime = 0.02; // max 20 ms
-
-    currentAngle += gyroZ * deltaTime;
-
-    yield();
-    //Serial.print("Kąt obrotu: ");
-    //Serial.println(currentAngle);
-  }
-
-  stop_driving();
-
-  // Aktualizacja kąta globalnego robota
-  if (turnDirection == turn_left) {
-    robotAngle -= fabs(currentAngle);
-  } else {
-    robotAngle += fabs(currentAngle);
-  }
-  robotAngle = fmod(robotAngle, 360.0);
-  if (robotAngle < 0) robotAngle += 360.0;
-}
 
 void pcf8574_init() {
   for (int i = 0; i < 8; i++) {
@@ -164,91 +93,109 @@ void pcf8574_init() {
 //////////////////////////////////
 }
 
+// Każda funkcja kierunku ustawia WSZYSTKIE flagi busy_* jawnie
+// (wcześniej obrót po jeździe do przodu zostawiał busy_forward = true).
 void forward() {
   busy_motors = true;
   busy_forward = true;
+  busy_backward = false;
   direction = "Do przodu";
+  if (motionUpToDate(MOTION_FORWARD)) return;
+  I2CLock lock(300);   // zapis do PCF pod blokadą I2C; po 300 ms piszemy mimo wszystko (stop ma priorytet)
   //Wheel 1
-  pcf8574.digitalWrite(0, LOW); 
+  pcf8574.digitalWrite(0, LOW);
   pcf8574.digitalWrite(1, HIGH);
   //Wheel 2
   pcf8574.digitalWrite(2, HIGH);
-  pcf8574.digitalWrite(3, LOW); 
+  pcf8574.digitalWrite(3, LOW);
   //Wheel 3
   pcf8574.digitalWrite(4, LOW);
-  pcf8574.digitalWrite(5, HIGH); 
+  pcf8574.digitalWrite(5, HIGH);
   //Wheel 4
   pcf8574.digitalWrite(6, HIGH);
-  pcf8574.digitalWrite(7, LOW); 
+  pcf8574.digitalWrite(7, LOW);
 }
- 
+
 void backward() {
   busy_motors = true;
-  busy_backward = true; 
+  busy_forward = false;
+  busy_backward = true;
   direction = "Do tyłu";
+  if (motionUpToDate(MOTION_BACKWARD)) return;
+  I2CLock lock(300);   // zapis do PCF pod blokadą I2C; po 300 ms piszemy mimo wszystko (stop ma priorytet)
   //Wheel 1
-  pcf8574.digitalWrite(0, HIGH); 
+  pcf8574.digitalWrite(0, HIGH);
   pcf8574.digitalWrite(1, LOW);
   //Wheel 2
   pcf8574.digitalWrite(2, LOW);
-  pcf8574.digitalWrite(3, HIGH); 
+  pcf8574.digitalWrite(3, HIGH);
   //Wheel 3
   pcf8574.digitalWrite(4, HIGH);
-  pcf8574.digitalWrite(5, LOW); 
+  pcf8574.digitalWrite(5, LOW);
   //Wheel 4
   pcf8574.digitalWrite(6, LOW);
-  pcf8574.digitalWrite(7, HIGH); 
+  pcf8574.digitalWrite(7, HIGH);
 }
- 
+
 void turn_left() {
   busy_motors = true;
+  busy_forward = false;
+  busy_backward = false;
   direction = "W lewo";
+  if (motionUpToDate(MOTION_LEFT)) return;
+  I2CLock lock(300);   // zapis do PCF pod blokadą I2C; po 300 ms piszemy mimo wszystko (stop ma priorytet)
   //Wheel 1
-  pcf8574.digitalWrite(0, LOW); 
+  pcf8574.digitalWrite(0, LOW);
   pcf8574.digitalWrite(1, HIGH);
   //Wheel 2
   pcf8574.digitalWrite(2, HIGH);
-  pcf8574.digitalWrite(3, LOW); 
+  pcf8574.digitalWrite(3, LOW);
   //Wheel 3
   pcf8574.digitalWrite(4, HIGH);
-  pcf8574.digitalWrite(5, LOW); 
+  pcf8574.digitalWrite(5, LOW);
   //Wheel 4
   pcf8574.digitalWrite(6, LOW);
-  pcf8574.digitalWrite(7, HIGH); 
+  pcf8574.digitalWrite(7, HIGH);
 }
- 
+
 void turn_right() {
   busy_motors = true;
+  busy_forward = false;
+  busy_backward = false;
   direction = "W prawo";
+  if (motionUpToDate(MOTION_RIGHT)) return;
+  I2CLock lock(300);   // zapis do PCF pod blokadą I2C; po 300 ms piszemy mimo wszystko (stop ma priorytet)
   //Wheel 1
-  pcf8574.digitalWrite(0, HIGH); 
+  pcf8574.digitalWrite(0, HIGH);
   pcf8574.digitalWrite(1, LOW);
   //Wheel 2
   pcf8574.digitalWrite(2, LOW);
-  pcf8574.digitalWrite(3, HIGH); 
+  pcf8574.digitalWrite(3, HIGH);
   //Wheel 3
   pcf8574.digitalWrite(4, LOW);
-  pcf8574.digitalWrite(5, HIGH); 
+  pcf8574.digitalWrite(5, HIGH);
   //Wheel 4
   pcf8574.digitalWrite(6, HIGH);
-  pcf8574.digitalWrite(7, LOW); 
+  pcf8574.digitalWrite(7, LOW);
 }
- 
+
 void stop_driving() {
   busy_motors = false;
   busy_forward = false;
-  busy_backward = false; 
+  busy_backward = false;
   direction = "Stop";
+  if (motionUpToDate(MOTION_STOP)) return;
+  I2CLock lock(300);   // zapis do PCF pod blokadą I2C; po 300 ms piszemy mimo wszystko (stop ma priorytet)
   //Wheel 1
-  pcf8574.digitalWrite(0, LOW); 
+  pcf8574.digitalWrite(0, LOW);
   pcf8574.digitalWrite(1, LOW);
   //Wheel 2
   pcf8574.digitalWrite(2, LOW);
-  pcf8574.digitalWrite(3, LOW); 
+  pcf8574.digitalWrite(3, LOW);
   //Wheel 3
   pcf8574.digitalWrite(4, LOW);
-  pcf8574.digitalWrite(5, LOW); 
+  pcf8574.digitalWrite(5, LOW);
   //Wheel 4
   pcf8574.digitalWrite(6, LOW);
-  pcf8574.digitalWrite(7, LOW); 
+  pcf8574.digitalWrite(7, LOW);
 }

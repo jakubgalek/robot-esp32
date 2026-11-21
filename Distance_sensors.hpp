@@ -1,8 +1,11 @@
 #include "Adafruit_VL53L0X.h"
 #include <PCF8574.h>
+#include "Odometry.hpp"
+#include "Log.hpp"
 
-// measurement0 - Servo (Front)
-// measurement1 - Servo (Back)
+void fixedSensorsMap();   // Scan.hpp: przeszkody z czujników stałych trafiają też na mapę
+
+// czujnik 0 - Servo (przód), czujnik 1 - Servo (tył): tylko skan mapy, patrz Scan.hpp
 // measurement2 - Left Front 
 // measurement3 - Front Left   
 // measurement4 - Front Center 
@@ -33,9 +36,14 @@
 // I/O expander address
 #define EXPANDER_ADDR 0x24
 
-// ⭐ PRÓG DLA SENSORA TYLNEGO - wartości 0-3 to wolna przestrzeń (błąd odczytu)
-#define BACK_SENSOR_MIN_VALID 4
+// Tylny czujnik: zwykłe odczyty od 3 cm. Mniej = za blisko dla czujnika (siedzi 1,5 cm w głębi robota), wtedy
+// VL53L0X daje brak echa albo śmieci - patrz niżej (zatrzask "blisko").
+#define BACK_SENSOR_MIN_VALID 3
 #define BACK_SENSOR_STOP_DISTANCE 10
+#define NEAR_LATCH_CM 15          // odczyt <= tyle = przeszkoda tuż-tuż; jeśli zaraz potem czujnik "traci" echo, to znaczy że jest jeszcze bliżej
+#define NEAR_LATCH_FRONT_MS 2000
+#define NEAR_LATCH_REAR_MS 4000
+#define SENSOR_STUCK_MS 1000      // tyle bez nowego odczytu = restart pomiarów czujnika
 
 Adafruit_VL53L0X lox0 = Adafruit_VL53L0X();
 Adafruit_VL53L0X lox1 = Adafruit_VL53L0X();
@@ -46,90 +54,162 @@ Adafruit_VL53L0X lox5 = Adafruit_VL53L0X();
 Adafruit_VL53L0X lox6 = Adafruit_VL53L0X();
 Adafruit_VL53L0X lox7 = Adafruit_VL53L0X();
 
-VL53L0X_RangingMeasurementData_t measure0;
-VL53L0X_RangingMeasurementData_t measure1;
-VL53L0X_RangingMeasurementData_t measure2;
-VL53L0X_RangingMeasurementData_t measure3;
-VL53L0X_RangingMeasurementData_t measure4;
-VL53L0X_RangingMeasurementData_t measure5;
-VL53L0X_RangingMeasurementData_t measure6;
-VL53L0X_RangingMeasurementData_t measure7;
 
 PCF8574 expander(EXPANDER_ADDR);
 
 // Użyj volatile dla zmiennych współdzielonych między wątkami
-volatile int measurement0, measurement1, measurement2, measurement3, measurement4, measurement5, measurement6, measurement7;
+volatile int measurement2, measurement3, measurement4, measurement5, measurement6, measurement7;
+volatile int rearCloseCount = 0;   // ile kolejnych odczytów tylnego czujnika mieści się w zakresie 3-10 cm
+volatile uint16_t sensorRestarts = 0;   // ile razy trzeba było wskrzesić zawieszony czujnik (diagnostyka)
 
-TaskHandle_t AutomaticDriveTaskHandle = NULL;
-TaskHandle_t CollectDistancesTaskHandle = NULL;
+extern TaskHandle_t AutomaticDriveTaskHandle;      // Explore.hpp
 
-// Mutex do ochrony odczytów czujników
-SemaphoreHandle_t sensorMutex = NULL;
 
-// ⭐ FORWARD DECLARATIONS - deklaracje funkcji przed użyciem
-void read_obstacle_sensors();
-void read_servo_sensors();
+// ---------------------------------------------------------------------------
+// Czujniki przeszkód (2..7) pracują w trybie CIĄGŁYM: każdy mierzy sam w tle
+// (co 40 ms), a zadanie czujników tylko odbiera gotowe wyniki. Dzięki temu:
+//  - loop() i auto-jazda nie czekają na pomiary (wcześniej 6 x ok. 33 ms w każdej iteracji),
+//  - magistrala I2C jest zajęta na krótko (blokada I2C trzymana tylko na czas odczytu),
+//  - wiemy, KIEDY dany pomiar był aktualny - robot nie jedzie na starych danych.
+// Czujniki serwa (0, 1) działają w trybie pojedynczym (rangingTest) i służą tylko do skanu mapy (Scan.hpp).
+// ---------------------------------------------------------------------------
+#define OBSTACLE_PERIOD_MS 40   // okres pomiarów w trybie ciągłym (musi być >= budżet czasowy ok. 33 ms)
 
-// ⭐ TERAZ można używać tych funkcji
-void checkDriveConditions() {
-  if (AutomaticDriveTaskHandle == NULL) {
-    read_obstacle_sensors();
+bool obstacleSensorActive[8] = {false};
+volatile unsigned long sensorLastOkMs[8] = {0};   // kiedy ostatnio odebrano poprawny pomiar
 
-    if (busy_forward == true) {
-      if (measurement3 <= 4 || measurement4 <= 15 || measurement5 <= 4) {
-        stop_driving();
-      }
-    }
-
-    if (busy_backward == true) {
-      // ⭐ POPRAWKA: Zatrzymaj tylko gdy measurement6 jest w zakresie 4-7 cm
-      // Wartości 0-3 to błędne odczyty oznaczające wolną przestrzeń
-      if (measurement6 >= BACK_SENSOR_MIN_VALID && measurement6 <= BACK_SENSOR_STOP_DISTANCE) {
-        stop_driving();
-      }
-    }
-  }
+// Wiek ostatniego odczytu [ms]; 99999 = jeszcze nie było. Liczone ze znakiem: inne zadanie mogło zapisać odczyt
+// chwilę PO naszym millis() - bez tego różnica "zawijała się" do ogromnej liczby i świeży odczyt wyglądał na stary.
+long sensorAgeMs(int idx) {
+  unsigned long last = sensorLastOkMs[idx];
+  if (last == 0) return 99999;
+  long a = (long)(millis() - last);
+  return a < 0 ? 0 : a;
 }
 
-void read_obstacle_sensors() {
-  // Zabezpieczenie mutexem - opcjonalne, jeśli tylko jeden wątek wywołuje tę funkcję
-  if (sensorMutex != NULL && xSemaphoreTake(sensorMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-    lox2.rangingTest(&measure2, false);
-    lox3.rangingTest(&measure3, false);
-    lox4.rangingTest(&measure4, false);
-    lox5.rangingTest(&measure5, false);
-    lox6.rangingTest(&measure6, false);
-    lox7.rangingTest(&measure7, false);
+// Czy dane z czujników przodu (3, 4, 5) są świeże
+bool frontSensorsFresh() {
+  return sensorAgeMs(3) <= SENSOR_MAX_AGE_MS && sensorAgeMs(4) <= SENSOR_MAX_AGE_MS && sensorAgeMs(5) <= SENSOR_MAX_AGE_MS;
+}
 
-    measurement2 = (measure2.RangeStatus != 4) ? measure2.RangeMilliMeter / 10 : 1000;
-    measurement3 = (measure3.RangeStatus != 4) ? measure3.RangeMilliMeter / 10 : 1000;
-    measurement4 = (measure4.RangeStatus != 4) ? measure4.RangeMilliMeter / 10 : 1000;
-    measurement5 = (measure5.RangeStatus != 4) ? measure5.RangeMilliMeter / 10 : 1000;
-    
-    // ⭐ POPRAWKA: Sensor tylny - wartości 0-3 cm zamień na 1000 (wolna przestrzeń)
-    int rawMeasurement6 = (measure6.RangeStatus != 4) ? measure6.RangeMilliMeter / 10 : 1000;
-    if (rawMeasurement6 >= 0 && rawMeasurement6 <= 3) {
-      measurement6 = 1000;  // Traktuj jako wolną przestrzeń
+// Czy dane z czujnika tylnego (6) są świeże
+bool backSensorFresh() {
+  return sensorAgeMs(6) <= SENSOR_MAX_AGE_REAR_MS;
+}
+
+// Przód zablokowany: przeszkoda za blisko LUB brak świeżych danych (fail-safe)
+bool frontBlocked() {
+  return !frontSensorsFresh() ||
+         measurement3 <= STOP_FRONT_SIDE_CM ||
+         measurement4 <= STOP_FRONT_CENTER_CM ||
+         measurement5 <= STOP_FRONT_SIDE_CM;
+}
+
+// Tył zablokowany: przeszkoda w zakresie 3-10 cm (bliżej niż 3 cm = zatrzask "blisko", patrz wyżej)
+// LUB brak świeżych danych (fail-safe)
+// Przeszkodę uznajemy dopiero po 2 kolejnych odczytach w zakresie (pojedynczy fałszywy odczyt
+// nie zatrzymuje już jazdy do tyłu).
+bool rearBlocked() {
+  return !backSensorFresh() || rearCloseCount >= 2;
+}
+
+// Odbiera wynik jednego czujnika pracującego w trybie ciągłym (jeśli jest gotowy).
+// Zatrzask "blisko" (czujniki bezpieczeństwa 3-6): gdy ostatni dobry odczyt był <= 15 cm, a potem czujnik
+// przestaje widzieć (brak echa / 0-3 cm - przedmiot przyłożony tuż przed czujnikiem), raportujemy 3 cm, a nie "daleko".
+static unsigned long nearSeenMs[8] = {0};
+static bool nearLatched[8] = {false};
+
+static void serviceObstacleSensor(int idx, Adafruit_VL53L0X &lox, volatile int &target) {
+  if (!obstacleSensorActive[idx]) return;
+
+  I2CLock lock(30);
+  if (!lock.ok()) return;
+
+  unsigned long now = millis();
+  if (sensorAgeMs(idx) > SENSOR_STUCK_MS && sensorLastOkMs[idx] != 0) {   // zawieszony pomiar: restart trybu ciągłego
+    lox.stopRangeContinuous();
+    obstacleSensorActive[idx] = lox.startRangeContinuous(OBSTACLE_PERIOD_MS);
+    sensorLastOkMs[idx] = now;                       // nie restartuj w kółko
+    sensorRestarts++;
+    logEvent("czujnik %d: brak odczytu, restart", idx);
+    return;
+  }
+
+  bool ready = lox.isRangeComplete();
+  if (lox.Status != VL53L0X_ERROR_NONE) return;   // błąd I2C - nie aktualizujemy (dane zestarzeją się)
+  if (!ready) return;
+
+  uint16_t mm = lox.readRangeResult();            // 0xFFFF = brak echa (status 4)
+  if (lox.Status != VL53L0X_ERROR_NONE) return;
+
+  int cm = (mm == 0xFFFF) ? 1000 : (int)(mm / 10);
+  bool safety = idx >= 3 && idx <= 6;
+  bool lost = (mm == 0xFFFF) || (idx == 6 && cm < BACK_SENSOR_MIN_VALID);
+  if (safety) {
+    if (!lost) {
+      nearLatched[idx] = cm <= NEAR_LATCH_CM;
+      if (nearLatched[idx]) nearSeenMs[idx] = now;
     } else {
-      measurement6 = rawMeasurement6;
+      unsigned long hold = (idx == 6) ? NEAR_LATCH_REAR_MS : NEAR_LATCH_FRONT_MS;
+      cm = (nearLatched[idx] && now - nearSeenMs[idx] < hold) ? BACK_SENSOR_MIN_VALID : 1000;
     }
-    
-    measurement7 = (measure7.RangeStatus != 4) ? measure7.RangeMilliMeter / 10 : 1000;
+  } else if (lost) cm = 1000;
+  if (idx == 6) {
+    if (cm >= BACK_SENSOR_MIN_VALID && cm <= BACK_SENSOR_STOP_DISTANCE) { if (rearCloseCount < 10) rearCloseCount = rearCloseCount + 1; }
+    else rearCloseCount = 0;
+  }
 
-    xSemaphoreGive(sensorMutex);
+  target = cm;
+  sensorLastOkMs[idx] = now;
+}
+
+// Zadanie czujników: odbiera pomiary przeszkód i liczy odometrię (co ok. 10 ms) oraz odświeża wolne
+// czujniki (napięcia, BMP180) raz na sekundę. TFT, WWW i buzzer czytają tylko wyniki z pamięci.
+void sensors_Task(void *pvParameters) {
+  unsigned long lastSlow = 0, lastObs = 0, lastStat = 0, sumMs = 0, cnt = 0, maxMs = 0, prev = millis();
+  while (1) {
+    odometry_update();   // droga z enkodera i kąt z żyroskopu (patrz Odometry.hpp)
+    unsigned long nowMs = millis();
+    if (nowMs - lastObs >= 20) {   // czujniki mierzą co 40 ms - odpytywanie co 20 ms wystarcza i oszczędza magistralę
+      lastObs = nowMs;
+      serviceObstacleSensor(2, lox2, measurement2);
+      serviceObstacleSensor(3, lox3, measurement3);
+      serviceObstacleSensor(4, lox4, measurement4);
+      serviceObstacleSensor(5, lox5, measurement5);
+      serviceObstacleSensor(6, lox6, measurement6);
+      serviceObstacleSensor(7, lox7, measurement7);
+    }
+    fixedSensorsMap();
+
+    unsigned long now = millis();
+    if (now - lastSlow >= 1000) {
+      lastSlow = now;
+      Voltages_update();
+      BMP_update();
+    }
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    unsigned long t = millis();
+    unsigned long d = t - prev; prev = t;
+    sumMs += d; cnt++; if (d > maxMs) maxMs = d;
+    if (t - lastStat >= 1000) {
+      lastStat = t;
+      cycleAvgMs = cnt ? sumMs / cnt : 0; cycleMaxMs = maxMs;
+      sumMs = 0; cnt = 0; maxMs = 0;
+    }
   }
 }
 
-void read_servo_sensors() {
-  // Zabezpieczenie mutexem dla czujników servo
-  if (sensorMutex != NULL && xSemaphoreTake(sensorMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-    lox0.rangingTest(&measure0, false);
-    lox1.rangingTest(&measure1, false);
-   
-    measurement0 = (measure0.RangeStatus != 4) ? measure0.RangeMilliMeter / 10 : 1000;
-    measurement1 = (measure1.RangeStatus != 4) ? measure1.RangeMilliMeter / 10 : 1000;
+// Zatrzymuje jazdę, gdy przeszkoda jest za blisko albo dane są nieaktualne.
+// Wołane z loop() - nie czeka już na czujniki, tylko sprawdza gotowe wyniki.
+void checkDriveConditions() {
+  if (AutomaticDriveTaskHandle != NULL) return;   // auto-jazda sprawdza przeszkody sama
 
-    xSemaphoreGive(sensorMutex);
+  if (busy_forward && frontBlocked()) {
+    stop_driving();
+  }
+  if (busy_backward && rearBlocked()) {
+    stop_driving();
   }
 }
 
@@ -183,7 +263,6 @@ void setID() {
     Serial.println(F("❌Failed to boot LOX0"));
     while (1);
   }
-  Serial.println(F("✅LOX0 initialized"));
   delay(50);
 
   // Inicjalizacja czujnika 1
@@ -194,7 +273,6 @@ void setID() {
     Serial.println(F("❌Failed to boot LOX1"));
     while (1);
   }
-  Serial.println(F("✅LOX1 initialized"));
   delay(50);
 
   // Inicjalizacja czujnika 2
@@ -205,7 +283,6 @@ void setID() {
     Serial.println(F("❌Failed to boot LOX2"));
     while (1);
   }
-  Serial.println(F("✅LOX2 initialized"));
   delay(50);
 
   // Inicjalizacja czujnika 3
@@ -216,7 +293,6 @@ void setID() {
     Serial.println(F("❌Failed to boot LOX3"));
     while (1);
   }
-  Serial.println(F("✅LOX3 initialized"));
   delay(50);
 
   // Inicjalizacja czujnika 4
@@ -227,7 +303,6 @@ void setID() {
     Serial.println(F("❌Failed to boot LOX4"));
     while (1);
   }
-  Serial.println(F("✅LOX4 initialized"));
   delay(50);
 
   // Inicjalizacja czujnika 5
@@ -238,7 +313,6 @@ void setID() {
     Serial.println(F("❌Failed to boot LOX5"));
     while (1);
   }
-  Serial.println(F("✅LOX5 initialized"));
   delay(50);
 
   // Inicjalizacja czujnika 6
@@ -249,7 +323,6 @@ void setID() {
     Serial.println(F("❌Failed to boot LOX6"));
     while (1);
   }
-  Serial.println(F("✅LOX6 initialized"));
   delay(50);
 
   // Inicjalizacja czujnika 7
@@ -260,28 +333,35 @@ void setID() {
     Serial.println(F("❌Failed to boot LOX7"));
     while (1);
   }
-  Serial.println(F("✅LOX7 initialized"));
   delay(50);
 }
 
+// Przełącza czujnik przeszkód w tryb ciągły; przy błędzie czujnik zostaje nieaktywny,
+// jego dane nigdy nie będą świeże, więc robot (fail-safe) nie pojedzie w tym kierunku.
+static void startObstacleSensor(int idx, Adafruit_VL53L0X &lox) {
+  I2CLock lock(200);
+  obstacleSensorActive[idx] = lox.startRangeContinuous(OBSTACLE_PERIOD_MS);
+  if (obstacleSensorActive[idx]) {
+  } else {
+    Serial.printf("LOX%d: blad trybu ciaglego\n", idx);
+  }
+}
+
 void Distance_sensors_init() {
-  Serial.println("🔄Starting VL53L0X sensors...");
-  
+
   // 1. NAJPIERW inicjalizuj expander
   expander.begin();
   delay(100);
-  Serial.println("✅PCF8574 expander initialized");
-  
-  // 2. Utwórz mutex do ochrony czujników
-  sensorMutex = xSemaphoreCreateMutex();
-  if (sensorMutex == NULL) {
-    Serial.println("❌Failed to create sensor mutex!");
-    while(1);
-  }
-  Serial.println("✅Sensor mutex created");
-  
-  // 3. TERAZ inicjalizuj czujniki
+
+  // 2. TERAZ inicjalizuj czujniki (nadają im adresy)
   setID();
-  
-  Serial.println("✅All VL53L0X sensors initialized");
+
+  // 3. Czujniki przeszkód -> tryb ciągły
+  startObstacleSensor(2, lox2);
+  startObstacleSensor(3, lox3);
+  startObstacleSensor(4, lox4);
+  startObstacleSensor(5, lox5);
+  startObstacleSensor(6, lox6);
+  startObstacleSensor(7, lox7);
+
 }
